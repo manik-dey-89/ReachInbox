@@ -46,7 +46,7 @@ export class SlackService {
   getAuthUrl(state: string): string {
     const params = new URLSearchParams({
       client_id: config.slackClientId,
-      scope: 'incoming-webhook,chat:write',
+      scope: 'incoming-webhook',
       redirect_uri: config.slackRedirectUri,
       state,
     });
