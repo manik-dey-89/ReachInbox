@@ -1,447 +1,488 @@
-# ReachInbox — Render Deployment Guide
+# ReachInbox — Render Manual Deployment Guide
 
-Complete, beginner-friendly instructions for deploying ReachInbox on Render's free tier.
+## Overview
 
----
+This guide walks you through deploying ReachInbox on Render **entirely through the Render Dashboard** — no Blueprint, no `render.yaml` required at runtime.
 
-## Section 1: Overview
+You will create five services in this order:
 
-### What you will create on Render
+| # | Service name | Render type | Root dir |
+|---|-------------|-------------|---------|
+| 1 | `reachinbox-db` | PostgreSQL | — |
+| 2 | `reachinbox-redis` | Redis | — |
+| 3 | `reachinbox-backend` | Web Service | `apps/backend` |
+| 4 | `reachinbox-worker` | Background Worker | `apps/worker` |
+| 5 | `reachinbox-frontend` | Web Service | `apps/frontend` |
 
-| # | Render Service Type | Name | Purpose |
-|---|---------------------|------|---------|
-| 1 | PostgreSQL (database) | reachinbox-db | Stores all application data |
-| 2 | Redis (key-value store) | reachinbox-redis | Session storage, job queue |
-| 3 | Web Service (Node) | reachinbox-backend | REST API + OAuth + Bull Board |
-| 4 | Background Worker (Node) | reachinbox-worker | BullMQ email processor |
-| 5 | Web Service (Node) | reachinbox-frontend | Next.js UI |
-
-### Architecture
+**Architecture:**
 
 ```
-Browser
-  │
-  ▼
-reachinbox-frontend (Next.js, port $PORT)
-  │  rewrites /api/* → reachinbox-backend
-  │
-  ▼
-reachinbox-backend (Express, port $PORT)
-  │  reads/writes → reachinbox-db (PostgreSQL)
-  │  pushes jobs  → reachinbox-redis (Redis)
-  │
-  ▼
-reachinbox-worker (BullMQ)
-  │  polls jobs from → reachinbox-redis
-  │  reads/writes    → reachinbox-db
-  │  sends emails via SMTP
+Browser → Frontend (Next.js, port 3000)
+               ↓ rewrites /api/*
+         Backend API (Express, Render-assigned PORT)
+               ↓                    ↓
+         PostgreSQL             Redis
+               ↓
+         Worker (BullMQ, no HTTP port)
 ```
 
-### Estimated cost (free tier)
-
-All services use Render's free tier — $0/month for development and testing. Free services sleep after 15 minutes of inactivity (first request wakes them in ~30 seconds). For production traffic, upgrade to Starter (~$7/month per service).
-
-### Time to deploy
-
-Approximately 30 minutes for a first-time deployment.
+**Estimated setup time:** 30–45 minutes  
+**Cost:** Free tier is enough to get started. All five services can run on Render's free plan.
 
 ---
 
-## Section 2: Prerequisites
+## Prerequisites
 
-Before starting, make sure you have the following:
-
-1. **GitHub repository** — Your code must be pushed to a GitHub (or GitLab) repo that Render can access. If the repo is private, you will authorize Render to access it during service creation.
-
-2. **Render account** — Sign up free at https://render.com.
-
-3. **Google Cloud Console access** — You need an existing OAuth 2.0 client ID and secret from https://console.cloud.google.com. You will update its redirect URIs after deploying.
-
-4. **Slack API access** (optional) — If you use Slack integration, you need your App's Client ID and Secret from https://api.slack.com/apps.
-
-5. **Node.js installed locally** — Needed only to generate secret keys before you start. Version 18+ works fine.
+- A GitHub account with this repo pushed (public, or Render connected to your private repo).
+- A Render account at [render.com](https://render.com).
+- A Google Cloud Console project with OAuth 2.0 credentials (for login).
+- (Optional) A Slack app at [api.slack.com/apps](https://api.slack.com/apps) for Slack integration.
+- Local Node.js installed (only to generate secrets — see Step 0).
 
 ---
 
-## Section 3: Step-by-Step Service Creation
+## Step 0: Generate Secrets Locally
 
-### 3A. Backend Web Service
+Run these commands in your terminal **before** deploying. Copy the output — you will paste these values into Render's dashboard.
 
-1. In your Render dashboard, click **New +** → **Web Service**.
-2. Connect your GitHub repository.
-3. Fill in the form:
-   - **Name:** `reachinbox-backend`
-   - **Region:** Oregon (US West)
-   - **Branch:** `main` (or your default branch)
-   - **Root Directory:** `apps/backend`
-   - **Runtime:** Node
-   - **Build Command:** `npm install && npm run build && npx prisma generate`
-   - **Start Command:** `npx prisma migrate deploy && node dist/index.js`
-   - **Plan:** Free
-4. Do **not** deploy yet — scroll down and add environment variables first (Section 6).
-5. Click **Create Web Service**.
+### SESSION_SECRET (any 32+ character random string)
 
-### 3B. Worker Background Worker
+```bash
+# Option A — openssl (macOS/Linux/WSL):
+openssl rand -hex 32
 
-1. Click **New +** → **Background Worker**.
-2. Connect the same repository.
-3. Fill in:
-   - **Name:** `reachinbox-worker`
-   - **Region:** Oregon (US West)
-   - **Branch:** `main`
-   - **Root Directory:** `apps/worker`
-   - **Runtime:** Node
-   - **Build Command:** `npm install && npm run build`
-   - **Start Command:** `node dist/index.js`
-   - **Plan:** Free
-4. Add environment variables (Section 6) before deploying.
-5. Click **Create Background Worker**.
+# Option B — Node.js (Windows):
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-### 3C. Frontend Web Service
+Example output: `a3f8c2d1e5b4a9f0c8d7e6b5a4f3c2d1e0b9a8f7c6d5e4b3a2f1c0d9e8b7a6`
 
-1. Click **New +** → **Web Service**.
-2. Connect the same repository.
-3. Fill in:
-   - **Name:** `reachinbox-frontend`
-   - **Region:** Oregon (US West)
-   - **Branch:** `main`
-   - **Root Directory:** `apps/frontend`
-   - **Runtime:** Node
-   - **Build Command:** `npm install && npm run build`
-   - **Start Command:** `npm start`
-   - **Plan:** Free
-4. Add environment variables (Section 6).
-5. Click **Create Web Service**.
+### ENCRYPTION_KEY (must be exactly 64 hex characters = 32 bytes)
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Example output: `0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1`
+
+> **Important:** Save both values in a password manager. You must use the **same** `ENCRYPTION_KEY` on both the backend and the worker. If you change it after deployment, all stored SMTP passwords become unreadable.
 
 ---
 
-## Section 4: PostgreSQL Setup
+## Step 1: Create PostgreSQL Database
 
-1. In your Render dashboard, click **New +** → **PostgreSQL**.
+1. Go to [dashboard.render.com](https://dashboard.render.com) and click **New +** → **PostgreSQL**.
 2. Fill in:
    - **Name:** `reachinbox-db`
    - **Database:** `reachinbox`
    - **User:** `reachinbox`
-   - **Region:** Oregon (US West)
-   - **Plan:** Free
+   - **Region:** Choose the same region you will use for all other services (e.g. Oregon US West).
+   - **Plan:** Free (or Starter for production).
 3. Click **Create Database**.
-4. Wait for it to become **Available** (usually under 2 minutes).
-5. On the database's detail page, find **Internal Database URL** and copy it. This is your `DATABASE_URL`. Use the **Internal** URL (not External) so traffic stays within Render's network.
+4. Wait for status to show **Available** (usually 1–2 minutes).
+5. On the database's info page, copy the **Internal Database URL**. It looks like:  
+   `postgresql://reachinbox:RANDOMPASSWORD@dpg-XXXXX-a/reachinbox`  
+   Save this as `DATABASE_URL`. You will paste it into the backend and worker env vars.
 
-> **Note:** The backend's start command includes `npx prisma migrate deploy`, which automatically runs all pending database migrations on every deploy. You do not need to run migrations manually.
-
-> **Free tier warning:** Render deletes free PostgreSQL databases that have been inactive for 90 days. Export your data before that or upgrade to a paid plan.
+> Use the **Internal URL** (not the External URL) for backend and worker. It is faster and free within Render's network.
 
 ---
 
-## Section 5: Redis Setup
+## Step 2: Create Redis
 
-1. In your Render dashboard, click **New +** → **Redis**.
+1. Click **New +** → **Redis**.
 2. Fill in:
    - **Name:** `reachinbox-redis`
-   - **Region:** Oregon (US West)
-   - **Plan:** Free
+   - **Region:** Same region as PostgreSQL.
+   - **Plan:** Free.
 3. Click **Create Redis**.
-4. Once available, copy the **Internal Redis URL**. This is your `REDIS_URL`.
-
-> **Note:** Always use the **Internal** Redis URL. The external URL only works from outside Render's network and counts against bandwidth limits.
-
-> **Free tier note:** Render's free Redis has 25 MB storage and no persistence. If the worker restarts, queued jobs may be lost. For reliable processing, upgrade to a paid Redis plan.
-
----
-
-## Section 6: Environment Variables — Complete Reference
-
-Set these in each service's **Environment** tab on Render before the first deploy.
-
-### Backend (`reachinbox-backend`)
-
-| Variable | Value / How to Get It | Required |
-|----------|----------------------|----------|
-| `NODE_ENV` | `production` | Yes |
-| `DATABASE_URL` | Internal Database URL from Section 4 | Yes |
-| `REDIS_URL` | Internal Redis URL from Section 5 | Yes |
-| `SESSION_SECRET` | Generate: `openssl rand -hex 32` (must be 32+ chars) | Yes |
-| `ENCRYPTION_KEY` | Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — must be exactly 64 hex characters | Yes |
-| `GOOGLE_CLIENT_ID` | From Google Cloud Console → Credentials | Yes (for OAuth login) |
-| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console → Credentials | Yes (for OAuth login) |
-| `GOOGLE_CALLBACK_URL` | `https://reachinbox-backend.onrender.com/api/auth/google/callback` | Yes (for OAuth login) |
-| `SLACK_CLIENT_ID` | From api.slack.com/apps → your app → Basic Information | No |
-| `SLACK_CLIENT_SECRET` | From api.slack.com/apps → your app → Basic Information | No |
-| `SLACK_REDIRECT_URI` | `https://reachinbox-backend.onrender.com/api/slack/callback` | No |
-| `CORS_ORIGIN` | `https://reachinbox-frontend.onrender.com` (set after frontend deploys) | Yes |
-| `GLOBAL_HOURLY_LIMIT` | `100` | No (default: 100) |
-| `SENDER_HOURLY_LIMIT` | `50` | No (default: 50) |
-| `ELASTICSEARCH_URL` | Bonsai URL or leave empty to skip (see Section 10) | No |
-| `ADMIN_EMAIL` | Your Google login email (for Bull Board access) | No |
-| `PORT` | **Do NOT set.** Render injects this automatically. | — |
-
-### Worker (`reachinbox-worker`)
-
-| Variable | Value / How to Get It | Required |
-|----------|----------------------|----------|
-| `NODE_ENV` | `production` | Yes |
-| `DATABASE_URL` | Same Internal Database URL as backend | Yes |
-| `REDIS_URL` | Same Internal Redis URL as backend | Yes |
-| `ENCRYPTION_KEY` | Same value as backend (must match exactly) | Yes |
-| `WORKER_CONCURRENCY` | `2` (safe for free tier) | No (default: 5) |
-| `WORKER_MAX_RETRIES` | `3` | No (default: 3) |
-| `GLOBAL_HOURLY_LIMIT` | `100` | No |
-| `SENDER_HOURLY_LIMIT` | `50` | No |
-| `ELASTICSEARCH_URL` | Same as backend if using ES | No |
-
-### Frontend (`reachinbox-frontend`)
-
-| Variable | Value / How to Get It | Required |
-|----------|----------------------|----------|
-| `NODE_ENV` | `production` | Yes |
-| `NEXT_PUBLIC_API_URL` | `https://reachinbox-backend.onrender.com` | Yes |
-| `PORT` | **Do NOT set.** Render injects this automatically. | — |
+4. Wait for status to show **Available**.
+5. Copy the **Internal Redis URL**. It looks like:  
+   `redis://red-XXXXX:6379`  
+   Save this as `REDIS_URL`.
 
 ---
 
-## Section 7: OAuth Configuration for Production
+## Step 3: Deploy the Backend API
 
-### Google OAuth
+### 3.1 Create Web Service
 
-After your backend service is deployed and you have its URL:
+1. Click **New +** → **Web Service**.
+2. Connect your GitHub repo.
+3. Fill in:
+   - **Name:** `reachinbox-backend`
+   - **Region:** Same as database.
+   - **Branch:** `main` (or your production branch).
+   - **Root Directory:** `apps/backend`
+   - **Runtime:** Node
+   - **Build Command:**
+     ```
+     npm install && npm run build
+     ```
+   - **Start Command:**
+     ```
+     npm run start:prod
+     ```
+     *(This runs `npx prisma migrate deploy && node dist/index.js` — migrations run automatically on every deploy before the server starts.)*
+   - **Plan:** Free.
+4. Click **Create Web Service** (do NOT deploy yet — set env vars first).
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Credentials**.
-2. Click on your OAuth 2.0 Client ID to edit it.
-3. Under **Authorized JavaScript origins**, add:
+### 3.2 Set Environment Variables
+
+Go to the service's **Environment** tab and add these variables one by one:
+
+| Variable | Value | Required | Notes |
+|----------|-------|----------|-------|
+| `NODE_ENV` | `production` | Yes | |
+| `DATABASE_URL` | Paste from Step 1 | Yes | Use Internal URL |
+| `REDIS_URL` | Paste from Step 2 | Yes | Use Internal URL |
+| `PORT` | *(do NOT set)* | — | Render injects this automatically |
+| `SESSION_SECRET` | Generated in Step 0 | Yes | Must be 32+ chars. Keep the same value across all redeploys |
+| `ENCRYPTION_KEY` | Generated in Step 0 | Yes | Must be exactly 64 hex chars. Must match worker's value |
+| `CORS_ORIGIN` | `https://reachinbox-frontend.onrender.com` | Yes | Use your actual frontend URL. Set after Step 5 is deployed. For now use a placeholder and update later |
+| `GOOGLE_CLIENT_ID` | From Google Cloud Console | Yes | Required for login |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console | Yes | Required for login |
+| `GOOGLE_CALLBACK_URL` | `https://reachinbox-backend.onrender.com/api/auth/google/callback` | Yes | Replace with your actual backend URL |
+| `SLACK_CLIENT_ID` | From api.slack.com/apps | No | App works without Slack |
+| `SLACK_CLIENT_SECRET` | From api.slack.com/apps | No | |
+| `SLACK_REDIRECT_URI` | `https://reachinbox-backend.onrender.com/api/slack/callback` | No | Replace with your actual backend URL |
+| `ELASTICSEARCH_URL` | From Bonsai or leave empty | No | Search degrades to DB queries if missing |
+| `ADMIN_EMAIL` | Your Google login email | Yes | This email gets access to Bull Board at `/admin/queues` |
+| `GLOBAL_HOURLY_LIMIT` | `100` | Yes | |
+| `SENDER_HOURLY_LIMIT` | `50` | Yes | |
+| `API_HOST` | `0.0.0.0` | Yes | Must bind to all interfaces on Render |
+
+> **Note:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are optional at app startup (the server starts without them), but users will get an error when they try to log in if these are missing. Set them before testing login.
+
+### 3.3 Trigger Deploy and Verify
+
+1. Click **Manual Deploy** → **Deploy latest commit**.
+2. Watch the **Logs** tab. A successful start looks like:
+   ```
+   Running migrations...
+   Prisma connected to database
+   Redis ready
+   ReachInbox API server started { host: '0.0.0.0', port: 10000, env: 'production' }
+   ```
+3. Visit your backend health check URL:
+   ```
+   https://reachinbox-backend.onrender.com/health
+   ```
+   Expected response:
+   ```json
+   { "status": "ok", "uptime": 12.3 }
+   ```
+   If you see this, the backend is running correctly.
+
+---
+
+## Step 4: Deploy the Worker
+
+### 4.1 Create Background Worker
+
+1. Click **New +** → **Background Worker**.
+2. Connect your GitHub repo (same repo).
+3. Fill in:
+   - **Name:** `reachinbox-worker`
+   - **Region:** Same as database.
+   - **Branch:** `main`.
+   - **Root Directory:** `apps/worker`
+   - **Runtime:** Node
+   - **Build Command:**
+     ```
+     npm install && npm run build
+     ```
+   - **Start Command:**
+     ```
+     npm run start
+     ```
+   - **Plan:** Free.
+4. Click **Create Background Worker** (set env vars before first deploy).
+
+### 4.2 Set Environment Variables
+
+| Variable | Value | Required | Notes |
+|----------|-------|----------|-------|
+| `NODE_ENV` | `production` | Yes | |
+| `DATABASE_URL` | Same as backend | Yes | Use Internal URL |
+| `REDIS_URL` | Same as backend | Yes | Use Internal URL |
+| `ENCRYPTION_KEY` | Same as backend | Yes | Must be identical to backend's value |
+| `GLOBAL_HOURLY_LIMIT` | `100` | Yes | |
+| `SENDER_HOURLY_LIMIT` | `50` | Yes | |
+| `WORKER_CONCURRENCY` | `2` | Yes | Use 2 on the free tier (512 MB RAM). Increase to 5 on paid plans |
+| `WORKER_MAX_RETRIES` | `3` | Yes | |
+| `ELASTICSEARCH_URL` | Same as backend if set | No | |
+
+### 4.3 Trigger Deploy and Verify
+
+1. Click **Manual Deploy** → **Deploy latest commit**.
+2. In the **Logs** tab, you should see:
+   ```
+   Worker started, concurrency: 2, queue: email-queue
+   ```
+3. The worker does not expose an HTTP port — there is no URL to visit. As long as it stays running without crashing, it is working.
+
+---
+
+## Step 5: Deploy the Frontend
+
+### 5.1 Create Web Service
+
+1. Click **New +** → **Web Service**.
+2. Connect the same GitHub repo.
+3. Fill in:
+   - **Name:** `reachinbox-frontend`
+   - **Region:** Same region.
+   - **Branch:** `main`.
+   - **Root Directory:** `apps/frontend`
+   - **Runtime:** Node
+   - **Build Command:**
+     ```
+     npm install && npm run build
+     ```
+   - **Start Command:**
+     ```
+     npm run start
+     ```
+   - **Plan:** Free.
+
+### 5.2 Set Environment Variables
+
+> **Critical:** `NEXT_PUBLIC_API_URL` is baked into the JavaScript bundle at **build time** by Next.js. If you deploy without this variable, all API calls from the browser will go to `localhost:3001` and fail. You must set it **before the first build**.
+
+| Variable | Value | Required | Notes |
+|----------|-------|----------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://reachinbox-backend.onrender.com` | Yes | Replace with your actual backend URL. Set BEFORE the first build. If you need to change it later, you must trigger a new build |
+| `NODE_ENV` | `production` | Yes | |
+
+### 5.3 Trigger Deploy and Verify
+
+1. Click **Manual Deploy** → **Deploy latest commit**.
+2. Wait for the build to finish (2–4 minutes for Next.js).
+3. Visit your frontend URL:
    ```
    https://reachinbox-frontend.onrender.com
    ```
-4. Under **Authorized redirect URIs**, add:
+   You should see the ReachInbox login page.
+
+---
+
+## Step 6: Update OAuth Callback URLs
+
+After all services are deployed, you must register the production callback URLs in the OAuth provider dashboards. Render assigns unique URLs per service.
+
+### 6.1 Google OAuth
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**.
+2. Click on your OAuth 2.0 Client ID.
+3. Under **Authorized redirect URIs**, add:
    ```
    https://reachinbox-backend.onrender.com/api/auth/google/callback
+   ```
+4. Under **Authorized JavaScript origins**, add:
+   ```
+   https://reachinbox-frontend.onrender.com
    ```
 5. Click **Save**.
-6. Go back to Render and set `GOOGLE_CALLBACK_URL` on the backend service to:
-   ```
-   https://reachinbox-backend.onrender.com/api/auth/google/callback
-   ```
+6. Make sure `GOOGLE_CALLBACK_URL` on the backend matches this exact URL (including `/api/auth/google/callback`).
 
-### Slack OAuth
+### 6.2 Slack OAuth (Optional)
 
-If you use Slack integration:
-
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) → select your app.
-2. In the left sidebar, click **OAuth & Permissions**.
-3. Under **Redirect URLs**, click **Add New Redirect URL** and add:
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Select your app.
+2. Go to **OAuth & Permissions** → **Redirect URLs** → Add:
    ```
    https://reachinbox-backend.onrender.com/api/slack/callback
    ```
-4. Click **Save URLs**.
-5. Set `SLACK_REDIRECT_URI` on the backend service to this same URL.
+3. Click **Save URLs**.
+4. Make sure `SLACK_REDIRECT_URI` on the backend matches this exact URL.
 
 ---
 
-## Section 8: Deployment Order
+## Step 7: Configure CORS
 
-Deploy services in this exact order to avoid startup failures caused by missing dependencies.
+The backend's `CORS_ORIGIN` must match the frontend URL exactly (no trailing slash).
 
-### Step 1 — Create PostgreSQL
-
-Follow Section 4. Wait until status shows **Available**.
-
-### Step 2 — Create Redis
-
-Follow Section 5. Wait until status shows **Available**.
-
-### Step 3 — Deploy Backend
-
-1. Create the backend service (Section 3A).
-2. Add all backend environment variables (Section 6).
-3. Set `DATABASE_URL` to the PostgreSQL Internal URL.
-4. Set `REDIS_URL` to the Redis Internal URL.
-5. Click **Save Changes** and wait for the deploy to complete.
-6. Copy the backend URL: `https://reachinbox-backend.onrender.com` (or whatever Render assigns).
-7. Verify: open `https://YOUR-BACKEND.onrender.com/health` — it should return `{"status":"ok"}`.
-
-### Step 4 — Deploy Worker
-
-1. Create the worker service (Section 3B).
-2. Add all worker environment variables (Section 6).
-3. Set `DATABASE_URL` and `REDIS_URL` to the same values as the backend.
-4. Click **Save Changes** and wait for the deploy to complete.
-5. In Render logs for the worker, you should see: `Worker started, concurrency: 2, queue: email-queue`.
-
-### Step 5 — Deploy Frontend
-
-1. Create the frontend service (Section 3C).
-2. Set `NEXT_PUBLIC_API_URL` to the backend URL from Step 3.
-3. Click **Save Changes** and wait for the deploy to complete.
-4. Copy the frontend URL: `https://reachinbox-frontend.onrender.com`.
-
-### Step 6 — Update CORS
-
-1. Go to the **backend** service on Render → **Environment**.
-2. Set `CORS_ORIGIN` to the frontend URL from Step 5 (no trailing slash):
+1. Go to your `reachinbox-backend` service → **Environment**.
+2. Set `CORS_ORIGIN` to your frontend URL:
    ```
    https://reachinbox-frontend.onrender.com
    ```
-3. Save and redeploy the backend.
+   (Replace with your actual frontend URL from Render's dashboard.)
+3. Click **Save Changes** — this will trigger a redeploy.
 
-### Step 7 — Update OAuth redirect URIs
-
-Follow Section 7 now that you have both URLs.
-
----
-
-## Section 9: Post-Deployment Verification
-
-Work through this checklist after all services are live.
-
-- [ ] **Backend health check** — `GET https://YOUR-BACKEND.onrender.com/health` returns `{"status":"ok"}`.
-- [ ] **Frontend loads** — Opening `https://YOUR-FRONTEND.onrender.com` shows the ReachInbox login page.
-- [ ] **Google OAuth login** — Clicking "Sign in with Google" redirects to Google's consent screen and returns you to the dashboard.
-- [ ] **Dashboard loads data** — The dashboard shows your campaigns (empty on first login is fine).
-- [ ] **Add a sender account** — Go to Senders, add an SMTP account (Ethereal works for testing).
-- [ ] **Create and schedule a campaign** — Compose an email, add a recipient, schedule it.
-- [ ] **Worker processes the job** — Open Render logs for `reachinbox-worker` and confirm you see `Job completed` after the scheduled time.
-- [ ] **Sent page shows preview link** — If using Ethereal, the sent email shows a preview URL.
-- [ ] **Bull Board accessible** — `GET https://YOUR-BACKEND.onrender.com/admin/queues` (requires login with `ADMIN_EMAIL`).
-- [ ] **Slack connect** — If configured, go to Settings → Slack and complete the OAuth flow.
+After the backend redeploys, test by visiting the frontend and opening the browser's DevTools → Network tab. API calls should not show CORS errors.
 
 ---
 
-## Section 10: Elasticsearch (Optional)
+## Step 8: Final Verification Checklist
 
-Elasticsearch enables fast full-text search across campaigns and emails. Without it, the app falls back to database queries and shows a "degraded search" banner — the application remains fully functional.
+Work through each item. All should pass before you share the app.
 
-### Free option: Bonsai
-
-[Bonsai](https://bonsai.io) offers a free Elasticsearch tier (125 MB, single node).
-
-1. Sign up at https://bonsai.io.
-2. Create a new cluster (choose a region close to Oregon if possible).
-3. Once the cluster is **Green**, go to **Access** → copy the **Elasticsearch URL** (it looks like `https://user:password@your-cluster.bonsai.io`).
-4. Set `ELASTICSEARCH_URL` to this URL on both the backend and worker services.
-5. Redeploy both services.
-
-If you leave `ELASTICSEARCH_URL` empty, the backend connects to `http://localhost:9200`, which will fail silently, and all search endpoints will fall back to database queries automatically.
-
----
-
-## Section 11: Troubleshooting
-
-### 1. "Application failed to start" in deploy logs
-
-Look at the full build and deploy log. The most common cause is a missing or invalid environment variable. The backend and worker validate all env vars at startup and print a clear error listing which variables are wrong.
-
-**Fix:** Go to the service's **Environment** tab, correct the variable, and redeploy.
-
-### 2. Prisma migration fails
-
-The error typically reads: `Error: P1001: Can't reach database server`.
-
-**Fix:** Make sure `DATABASE_URL` is the **Internal** database URL (starts with `postgresql://`), not the External URL. Also confirm the PostgreSQL service status is **Available**, not **Creating**.
-
-### 3. CORS errors in browser console
-
-The browser shows: `Access to fetch has been blocked by CORS policy`.
-
-**Fix:** `CORS_ORIGIN` on the backend must exactly match the frontend URL — no trailing slash, correct protocol (`https://`). Example: `https://reachinbox-frontend.onrender.com` ✓ vs `https://reachinbox-frontend.onrender.com/` ✗.
-
-### 4. OAuth callback mismatch
-
-Google or Slack returns: `redirect_uri_mismatch`.
-
-**Fix:** The redirect URI registered in Google Cloud Console / Slack must exactly match `GOOGLE_CALLBACK_URL` / `SLACK_REDIRECT_URI` — same scheme, domain, and path. No trailing slash. Update the OAuth provider settings and the Render env var to match.
-
-### 5. Session not persisting (logged out after every request)
-
-**Fix:** `SESSION_SECRET` must be a fixed value, not rotated between deploys. In `render.yaml`, the blueprint uses `generateValue: true`, which generates it once and keeps it stable — this is correct. If you set it manually, make sure you use the same value every time you redeploy.
-
-### 6. Redis connection refused
-
-Error: `Error: connect ECONNREFUSED`.
-
-**Fix:** Use the **Internal** Redis URL. The external URL only works from outside Render. Also confirm the Redis service status is **Available**.
-
-### 7. Worker not processing jobs
-
-Emails are queued but never sent.
-
-**Fix:** Check that the worker's `REDIS_URL` is identical to the backend's `REDIS_URL`. Both must point to the same Redis instance. Also check worker Render logs for startup errors.
-
-### 8. Free tier services take 30+ seconds to respond
-
-Render free services spin down after 15 minutes of inactivity. The first request after a sleep period wakes the service, which takes about 30 seconds.
-
-**Fix:** This is expected on the free tier. For consistent response times, upgrade to the Starter plan. Alternatively, use a cron job or uptime monitor (e.g., UptimeRobot's free tier) to ping `/health` every 10 minutes.
-
-### 9. Encryption key error at startup
-
-Error: `ENCRYPTION_KEY must be a 64-character hex string (32 bytes)`.
-
-**Fix:** Generate the key correctly:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-The output is exactly 64 characters. Copy the full output with no extra spaces or newlines.
-
-### 10. Bull Board returns 403 Forbidden
-
-**Fix:** `ADMIN_EMAIL` must exactly match the email address you use to sign in with Google OAuth. It is case-sensitive. After updating the env var, redeploy the backend and log in again.
+- [ ] `https://YOUR-BACKEND.onrender.com/health` returns `{"status":"ok",...}`
+- [ ] `https://YOUR-FRONTEND.onrender.com` shows the login page (no blank screen)
+- [ ] Clicking "Sign in with Google" redirects to Google and returns to the frontend
+- [ ] After login, the dashboard loads without errors in the browser console
+- [ ] Creating a sender account saves without errors
+- [ ] Creating a campaign and uploading recipients works
+- [ ] Launching a campaign queues jobs (check backend logs for `Job queued`)
+- [ ] Worker logs show `Job completed` within a few seconds of launching a campaign
+- [ ] `https://YOUR-BACKEND.onrender.com/admin/queues` redirects to login if not authenticated, and shows Bull Board after logging in with the `ADMIN_EMAIL` account
+- [ ] No CORS errors in the browser console
 
 ---
 
-## Section 12: Free Tier Limitations
+## Environment Variables Reference
 
-| Limitation | Detail |
-|------------|--------|
-| Service sleep | Free Web Services and Workers spin down after 15 min of inactivity. Cold start takes ~30 s. |
-| PostgreSQL storage | 1 GB included. Database is deleted after 90 days of inactivity. |
-| PostgreSQL connections | Up to 97 connections on the free tier. |
-| Redis storage | 25 MB. No persistence — data is lost on restart. |
-| Build minutes | 400 build-minutes/month on the free tier (shared across all services). |
-| Bandwidth | 100 GB/month outbound on the free tier. |
+Complete reference — use this when setting up each service on Render.
 
-### Upgrading for production use
+### Backend (`apps/backend`)
 
-If you need reliable uptime and persistent data, upgrade to Render's **Starter** plan:
+| Variable | Value | Required | Notes |
+|----------|-------|----------|-------|
+| `NODE_ENV` | `production` | Yes | |
+| `DATABASE_URL` | From Render PostgreSQL → Internal URL | Yes | Starts with `postgresql://` |
+| `REDIS_URL` | From Render Redis → Internal URL | Yes | Starts with `redis://` |
+| `PORT` | *(do NOT set)* | — | Render injects this. App reads `PORT` automatically |
+| `SESSION_SECRET` | Generate with `openssl rand -hex 32` | Yes | 32+ chars. Must be stable across redeploys |
+| `ENCRYPTION_KEY` | Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | Yes | Exactly 64 hex chars. Must match worker |
+| `CORS_ORIGIN` | `https://YOUR-FRONTEND.onrender.com` | Yes | No trailing slash. Update after frontend deploys |
+| `GOOGLE_CLIENT_ID` | From Google Cloud Console | Yes | OAuth login requires this |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console | Yes | |
+| `GOOGLE_CALLBACK_URL` | `https://YOUR-BACKEND.onrender.com/api/auth/google/callback` | Yes | Must match Google Console redirect URI |
+| `SLACK_CLIENT_ID` | From api.slack.com/apps | No | App works without Slack |
+| `SLACK_CLIENT_SECRET` | From api.slack.com/apps | No | |
+| `SLACK_REDIRECT_URI` | `https://YOUR-BACKEND.onrender.com/api/slack/callback` | No | Must match Slack app redirect URI |
+| `ELASTICSEARCH_URL` | From Bonsai or leave empty | No | Search degrades to DB if missing |
+| `ADMIN_EMAIL` | Your Google login email | Yes | Grants access to `/admin/queues` (Bull Board) |
+| `GLOBAL_HOURLY_LIMIT` | `100` | Yes | Max emails per hour across all senders |
+| `SENDER_HOURLY_LIMIT` | `50` | Yes | Max emails per hour per sender account |
+| `API_HOST` | `0.0.0.0` | Yes | Must bind to all interfaces (required on Render) |
 
-- Web Service / Worker: $7/month each
-- PostgreSQL: $7/month (90-day auto-delete removed, persistent storage)
-- Redis: $10/month (256 MB, with persistence)
+### Worker (`apps/worker`)
 
-Total for all 5 services on Starter: approximately $38/month.
+| Variable | Value | Required | Notes |
+|----------|-------|----------|-------|
+| `NODE_ENV` | `production` | Yes | |
+| `DATABASE_URL` | Same as backend | Yes | Use Internal URL |
+| `REDIS_URL` | Same as backend | Yes | Use Internal URL |
+| `ENCRYPTION_KEY` | Same as backend | Yes | Must be identical — used to decrypt SMTP passwords |
+| `GLOBAL_HOURLY_LIMIT` | `100` | Yes | |
+| `SENDER_HOURLY_LIMIT` | `50` | Yes | |
+| `WORKER_CONCURRENCY` | `2` | Yes | Free tier: 2. Paid: 5 |
+| `WORKER_MAX_RETRIES` | `3` | Yes | |
+| `ELASTICSEARCH_URL` | Same as backend | No | |
 
----
+### Frontend (`apps/frontend`)
 
-## Quick-Reference: All Commands
-
-### Generate secrets locally
-
-```bash
-# SESSION_SECRET (32+ chars)
-openssl rand -hex 32
-
-# ENCRYPTION_KEY (exactly 64 hex chars)
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### Verify backend locally before deploying
-
-```bash
-cd apps/backend
-npm run build          # TypeScript compile
-npm run typecheck      # Type check without emit
-npm run test           # Run Vitest tests
-```
-
-### Check deployment health after going live
-
-```bash
-# Backend health
-curl https://reachinbox-backend.onrender.com/health
-
-# Expected response:
-# {"status":"ok"}
-```
+| Variable | Value | Required | Notes |
+|----------|-------|----------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://YOUR-BACKEND.onrender.com` | Yes | **Set BEFORE first build.** This value is baked into the JS bundle at build time by Next.js. Changing it requires a new build |
+| `NODE_ENV` | `production` | Yes | |
 
 ---
 
-*Generated for ReachInbox — Render deployment configuration created in commit `feat: production deployment config for Render`.*
+## Elasticsearch (Optional)
+
+Elasticsearch enables full-text search across campaigns and recipients. If `ELASTICSEARCH_URL` is not set, the app falls back to database queries and continues working normally.
+
+### Free setup with Bonsai
+
+1. Create a free account at [bonsai.io](https://bonsai.io).
+2. Create a cluster (Hobby plan is free).
+3. Copy the cluster URL (includes credentials): `https://user:pass@your-cluster.us-east-1.bonsaisearch.net`
+4. Set this as `ELASTICSEARCH_URL` on both backend and worker.
+
+---
+
+## Troubleshooting
+
+### "Application failed to respond" on Render
+
+The app crashed before binding to the port. Check **Logs**. Most common causes:
+- Missing required env var (`DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, or `ENCRYPTION_KEY`).
+- `ENCRYPTION_KEY` is not exactly 64 hex characters.
+- Database migrations failed — check for migration errors in the logs.
+
+### CORS error in browser console
+
+`Access-Control-Allow-Origin` is wrong or missing.
+- Check that `CORS_ORIGIN` on the backend exactly matches your frontend URL.
+- No trailing slash: `https://app.onrender.com` not `https://app.onrender.com/`.
+- After changing `CORS_ORIGIN`, wait for the backend to redeploy.
+
+### "redirect_uri_mismatch" on Google login
+
+The callback URL in Google Cloud Console does not match what the backend sends.
+- Check `GOOGLE_CALLBACK_URL` on the backend: it must be `https://YOUR-BACKEND.onrender.com/api/auth/google/callback`.
+- In Google Cloud Console, the same URL must be in **Authorized redirect URIs**.
+- URLs are case-sensitive and must have no trailing slash.
+
+### Session not persisting (logged out after every page refresh)
+
+- `SESSION_SECRET` is different between deploys or missing.
+- Redis is not connected — check backend logs for `Redis connection error`.
+- The session cookie's `SameSite=Strict` can block cross-origin cookies if frontend and backend are on different domains. All `/api/*` routes are proxied through the Next.js frontend, so this should not occur — but verify the rewrites in `next.config.js` are reaching the backend.
+
+### Worker not processing jobs
+
+- Check worker logs for errors.
+- Confirm `REDIS_URL` and `DATABASE_URL` on the worker match the backend.
+- Confirm `ENCRYPTION_KEY` on the worker is identical to the backend's value. A mismatch causes SMTP password decryption to fail and jobs to error.
+- Try reducing `WORKER_CONCURRENCY` to `1` on the free tier to avoid OOM.
+
+### "Invalid environment configuration" on startup
+
+The Zod schema validation failed. The error message in the logs names the missing or invalid variable. The most common causes:
+- `ENCRYPTION_KEY` is not exactly 64 hex characters (128 bits = 32 bytes = 64 hex chars).
+- `SESSION_SECRET` is shorter than 32 characters.
+- `DATABASE_URL` or `REDIS_URL` is empty.
+
+### Database migration error on deploy
+
+- If you see `P3005` or migration conflicts, the database has schema drift.
+- Do not use `prisma migrate dev` on a production database — it is for local development only.
+- For the first deploy, `prisma migrate deploy` creates all tables from your migration history.
+- If needed, connect to the Render PostgreSQL database using an external tool (e.g., TablePlus) and inspect the state.
+
+### Frontend shows blank page or "Internal Server Error"
+
+- `NEXT_PUBLIC_API_URL` was not set before the build. Redeploy the frontend after setting it.
+- Check the browser console for the actual error.
+- Check the frontend service logs on Render for Next.js startup errors.
+
+### Bull Board `/admin/queues` returns 403 Forbidden
+
+- You are logged in but your account email does not match `ADMIN_EMAIL`.
+- `ADMIN_EMAIL` must exactly match the email address of your Google account (case-sensitive).
+- After updating `ADMIN_EMAIL`, the backend must redeploy.
+
+### "Service Unavailable" after a few minutes
+
+- Free tier services on Render **spin down after 15 minutes of inactivity**. The first request after spin-down takes 30–60 seconds to respond.
+- To avoid this, upgrade to a Starter plan or use an external uptime monitor (e.g., UptimeRobot with a free ping to your `/health` endpoint every 5 minutes).
+
+### Slack OAuth callback fails
+
+- `SLACK_REDIRECT_URI` on the backend must match the redirect URL registered in your Slack app's **OAuth & Permissions** page.
+- Confirm both values are identical, including the path `/api/slack/callback`.
+
+---
+
+## Free Tier Limitations & Upgrade Path
+
+| Limitation | Free Tier | Solution |
+|------------|-----------|---------|
+| Services spin down after 15 min of inactivity | Yes | Upgrade to Starter ($7/month) or use an uptime monitor to keep it awake |
+| PostgreSQL storage | 1 GB | Upgrade to Basic PostgreSQL ($7/month) for 10 GB |
+| Redis memory | 25 MB | Upgrade to Starter Redis ($10/month) for 100 MB |
+| Build minutes | 500/month per account | Usually enough for small projects |
+| Bandwidth | 100 GB/month | Enough for most use cases |
+| Custom domains | Supported on all plans | Add via service Settings → Custom Domains |
+
+### Upgrade path for production
+
+1. Upgrade PostgreSQL to **Starter** (adds persistent storage and backups).
+2. Upgrade Redis to **Starter** (adds more memory for session storage and job queues).
+3. Upgrade backend and worker web services to **Starter** (prevents sleep, adds more RAM).
+4. Set a custom domain in **Settings → Custom Domains** for each service.
+5. Increase `WORKER_CONCURRENCY` to 5 after upgrading worker RAM.
