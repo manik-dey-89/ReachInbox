@@ -13,7 +13,11 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@reachinbox/shared": ["./shared-index"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
