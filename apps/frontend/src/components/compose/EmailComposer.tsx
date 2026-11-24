@@ -57,7 +57,8 @@ export function EmailComposer() {
         senderAccountId: formValues.senderAccountId,
         subject: formValues.subject,
         body: formValues.body,
-        recipients: formValues.recipients,
+        recipients: formValues.recipients
+          .filter((r): r is { email: string; name?: string } => typeof r.email === 'string' && r.email.length > 0),
         scheduledAt: formValues.scheduledAt,
         delayBetweenMs: formValues.delayBetweenMs,
         hourlyLimit: formValues.hourlyLimit,

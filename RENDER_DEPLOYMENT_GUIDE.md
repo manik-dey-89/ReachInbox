@@ -142,10 +142,10 @@ Go to the service's **Environment** tab and add these variables one by one:
 | `CORS_ORIGIN` | `https://reachinbox-frontend.onrender.com` | Yes | Use your actual frontend URL. Set after Step 5 is deployed. For now use a placeholder and update later |
 | `GOOGLE_CLIENT_ID` | From Google Cloud Console | Yes | Required for login |
 | `GOOGLE_CLIENT_SECRET` | From Google Cloud Console | Yes | Required for login |
-| `GOOGLE_CALLBACK_URL` | `https://reachinbox-backend.onrender.com/api/auth/google/callback` | Yes | Replace with your actual backend URL |
+| `GOOGLE_CALLBACK_URL` | `https://reachinbox-backend-in0o.onrender.com/api/auth/google/callback` | Yes | Replace with your actual backend URL |
 | `SLACK_CLIENT_ID` | From api.slack.com/apps | No | App works without Slack |
 | `SLACK_CLIENT_SECRET` | From api.slack.com/apps | No | |
-| `SLACK_REDIRECT_URI` | `https://reachinbox-backend.onrender.com/api/slack/callback` | No | Replace with your actual backend URL |
+| `SLACK_REDIRECT_URI` | `https://reachinbox-backend-in0o.onrender.com/api/slack/callback` | No | Replace with your actual backend URL |
 | `ELASTICSEARCH_URL` | From Bonsai or leave empty | No | Search degrades to DB queries if missing |
 | `ADMIN_EMAIL` | Your Google login email | Yes | This email gets access to Bull Board at `/admin/queues` |
 | `GLOBAL_HOURLY_LIMIT` | `100` | Yes | |
@@ -166,7 +166,7 @@ Go to the service's **Environment** tab and add these variables one by one:
    ```
 3. Visit your backend health check URL:
    ```
-   https://reachinbox-backend.onrender.com/health
+   https://reachinbox-backend-in0o.onrender.com/health
    ```
    Expected response:
    ```json
@@ -252,7 +252,7 @@ Go to the service's **Environment** tab and add these variables one by one:
 
 | Variable | Value | Required | Notes |
 |----------|-------|----------|-------|
-| `NEXT_PUBLIC_API_URL` | `https://reachinbox-backend.onrender.com` | Yes | Replace with your actual backend URL. Set BEFORE the first build. If you need to change it later, you must trigger a new build |
+| `NEXT_PUBLIC_API_URL` | `https://reachinbox-backend-in0o.onrender.com` | Yes | Replace with your actual backend URL. Set BEFORE the first build. If you need to change it later, you must trigger a new build |
 | `NODE_ENV` | `production` | Yes | |
 
 ### 5.3 Trigger Deploy and Verify
@@ -277,7 +277,7 @@ After all services are deployed, you must register the production callback URLs 
 2. Click on your OAuth 2.0 Client ID.
 3. Under **Authorized redirect URIs**, add:
    ```
-   https://reachinbox-backend.onrender.com/api/auth/google/callback
+   https://reachinbox-backend-in0o.onrender.com/api/auth/google/callback
    ```
 4. Under **Authorized JavaScript origins**, add:
    ```
@@ -291,7 +291,7 @@ After all services are deployed, you must register the production callback URLs 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Select your app.
 2. Go to **OAuth & Permissions** → **Redirect URLs** → Add:
    ```
-   https://reachinbox-backend.onrender.com/api/slack/callback
+   https://reachinbox-backend-in0o.onrender.com/api/slack/callback
    ```
 3. Click **Save URLs**.
 4. Make sure `SLACK_REDIRECT_URI` on the backend matches this exact URL.

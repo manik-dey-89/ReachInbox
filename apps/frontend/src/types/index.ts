@@ -1,5 +1,6 @@
-// Re-export everything from @reachinbox/shared
-export * from '@reachinbox/shared';
+// Local copies of shared types (inlined for Render isolated build compatibility)
+export * from '../shared-enums';
+export * from '../shared-types';
 
 // Frontend-specific types — matches backend PaginatedResponse shape
 export interface PaginatedResponse<T> {
