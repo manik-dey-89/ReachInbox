@@ -91,6 +91,10 @@ passport.deserializeUser(async (id: string, done) => {
 export function createApp(): express.Application {
   const app = express();
 
+  // Trust the first proxy (Render's load balancer) so Express sees HTTPS correctly
+  // and secure cookies work in production.
+  app.set('trust proxy', 1);
+
   // Security headers
   app.use(helmet());
 
@@ -122,9 +126,12 @@ export function createApp(): express.Application {
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: config.isProduction,
+        secure: config.isProduction,          // HTTPS only in production
         maxAge: config.sessionMaxAge,
-        sameSite: config.isProduction ? 'strict' : 'lax',
+        // 'none' required in production so the cookie is sent on cross-site
+        // OAuth redirects (Google → backend callback). Must be used with
+        // secure:true (HTTPS). 'lax' is fine for development.
+        sameSite: config.isProduction ? 'none' : 'lax',
       },
     }),
   );
