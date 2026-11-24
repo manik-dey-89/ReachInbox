@@ -156,7 +156,7 @@ Services available once containers are healthy:
 
 7. **Start the API server**
    ```bash
-   npm run dev --workspace=apps/api
+   npm run dev --workspace=apps/backend
    ```
 
 8. **Start the worker**
@@ -166,7 +166,7 @@ Services available once containers are healthy:
 
 9. **Start the web app**
    ```bash
-   npm run dev --workspace=apps/web
+   npm run dev --workspace=apps/frontend
    ```
 
 Or start all three in one terminal:
@@ -366,8 +366,8 @@ Test results from the final run:
 
 | Suite | Files | Tests | Result |
 |---|---|---|---|
-| API (`apps/api`) | 5 | 53 | ✅ passed |
-| Web (`apps/web`) | 3 | 26 | ✅ passed |
+| API (`apps/backend`) | 5 | 53 | ✅ passed |
+| Web (`apps/frontend`) | 3 | 26 | ✅ passed |
 | E2E (`e2e`) | 1 | 6 | ✅ passed |
 | **Total** | **9** | **85** | **✅ all passed** |
 
@@ -501,7 +501,7 @@ This mimics provider throttling. For campaigns with hundreds of recipients, the 
 
 ## Features — Backend vs Frontend
 
-### Backend (`apps/api` + `apps/worker`)
+### Backend (`apps/backend` + `apps/worker`)
 
 | Feature | File(s) |
 |---|---|
@@ -525,7 +525,7 @@ This mimics provider throttling. For campaigns with hundreds of recipients, the 
 | Google OAuth login | `app.ts` — Passport Google strategy |
 | Session management | Redis-backed `express-session` |
 
-### Frontend (`apps/web`)
+### Frontend (`apps/frontend`)
 
 | Feature | File(s) |
 |---|---|
@@ -616,3 +616,4 @@ This mimics provider throttling. For campaigns with hundreds of recipients, the 
 | 23 | Dark/light theme | ✅ |
 | 24 | Docker Compose deployment | ✅ |
 | 25 | Automated test suite | ✅ 85 tests |
+

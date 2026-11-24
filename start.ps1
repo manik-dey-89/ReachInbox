@@ -85,7 +85,7 @@ Write-Host "      Loaded $($envVarParts.Count) environment variables." -Foregrou
 # 6. Start the API in background
 # ---------------------------------------------------------------------------
 Write-Host "[6/9] Starting API server (port 3001)..." -ForegroundColor Yellow
-$apiCmd = "${envVarString} node /mnt/d/Mailora/reachinbox/apps/api/dist/index.js"
+$apiCmd = "${envVarString} node /mnt/d/Mailora/reachinbox/apps/backend/dist/index.js"
 Start-Process wsl `
     -ArgumentList "-d", "Ubuntu", "-u", "root", "--", "bash", "-c", $apiCmd `
     -WindowStyle Hidden
@@ -117,7 +117,7 @@ Write-Host "`r      Warmup complete.                " -ForegroundColor Green
 Write-Host "[8/9] Starting Next.js frontend (port 3000)..." -ForegroundColor Yellow
 Start-Process node `
     -ArgumentList "../../node_modules/next/dist/bin/next", "dev", "-p", "3000" `
-    -WorkingDirectory "d:\Mailora\reachinbox\apps\web" `
+    -WorkingDirectory "d:\Mailora\reachinbox\\apps\\frontend" `
     -WindowStyle Normal
 Write-Host "      Next.js process launched." -ForegroundColor Green
 
@@ -150,3 +150,5 @@ Write-Host "  API Health : http://localhost:3001/api/health" -ForegroundColor Wh
 Write-Host ""
 Write-Host "  Run .\stop.ps1 to shut everything down." -ForegroundColor Gray
 Write-Host ""
+
+

@@ -75,3 +75,4 @@ Write-Host ""
 Write-Host "  PostgreSQL and Redis (WSL) are still running." -ForegroundColor Gray
 Write-Host "  To stop them: wsl -d Ubuntu -u root -- bash -c `"service postgresql stop; service redis-server stop`"" -ForegroundColor Gray
 Write-Host ""
+
