@@ -141,9 +141,25 @@ export default function SettingsPage() {
               ))}
             </div>
           ) : senders.length === 0 ? (
-            <div className="flex flex-col items-center py-8 text-center">
-              <Server className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">No sender accounts yet.</p>
+            <div className="flex flex-col items-center py-6 text-center gap-3">
+              <Server className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+              <div>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No sender accounts yet.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Add one below or create a free test sender.</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={isCreating}
+                onClick={async () => {
+                  try {
+                    await createSenderAsync({ name: 'Ethereal Test', email: 'test@ethereal.email', useEthereal: true });
+                    toast.success('Ethereal test sender created!');
+                  } catch { toast.error('Failed to create sender'); }
+                }}
+              >
+                ✨ Create Free Ethereal Test Sender
+              </Button>
             </div>
           ) : (
             <Table>

@@ -2,16 +2,24 @@ import { config } from './config';
 import logger from './utils/logger';
 
 async function main(): Promise<void> {
+  console.log('[startup] main() called, loading singletons...');
   // Dynamically import heavy singletons after config is validated
+  console.log('[startup] importing prisma...');
   const { prisma } = await import('./config/database');
+  console.log('[startup] importing redis...');
   const { redis } = await import('./config/redis');
+  console.log('[startup] importing esClient...');
   const { esClient } = await import('./config/elasticsearch');
+  console.log('[startup] importing app...');
   const { createApp } = await import('./app');
+  console.log('[startup] app module loaded');
 
   // Connect Redis
   try {
+    console.log('[startup] connecting Redis...');
     await redis.connect();
     logger.info('Redis ready');
+    console.log('[startup] Redis connected');
   } catch (err) {
     logger.error('Failed to connect to Redis', { error: (err as Error).message });
     process.exit(1);
@@ -19,6 +27,7 @@ async function main(): Promise<void> {
 
   // Connect Prisma (lazy — first query triggers connection)
   try {
+    console.log('[startup] connecting Prisma...');
     await prisma.$connect();
     logger.info('Prisma connected to database');
   } catch (err) {
@@ -30,7 +39,9 @@ async function main(): Promise<void> {
   void esClient;
 
   // Start HTTP server
+  console.log('[startup] creating app...');
   const app = createApp();
+  console.log('[startup] starting listen on port', config.port);
   const server = app.listen(config.port, config.host, () => {
     logger.info('ReachInbox API server started', {
       host: config.host,

@@ -11,7 +11,11 @@ import { formatDate } from '@/lib/utils';
 import type { EmailJob } from '@/types';
 import toast from 'react-hot-toast';
 
-type JobRow = Record<string, unknown> & EmailJob;
+type JobWithRecipient = EmailJob & {
+  recipient?: { email: string; name: string | null };
+  campaign?: { subject: string };
+};
+type JobRow = Record<string, unknown> & JobWithRecipient;
 
 export default function FailedPage() {
   const [page, setPage] = useState(1);
@@ -21,7 +25,7 @@ export default function FailedPage() {
     status: 'FAILED',
     page,
     pageSize,
-  }) as { jobs: { data: EmailJob[]; total: number } | undefined; isLoading: boolean; error: Error | null; retryJob: (id: string) => void };
+  }) as { jobs: { items: JobWithRecipient[]; total: number } | undefined; isLoading: boolean; error: Error | null; retryJob: (id: string) => void };
 
   function handleRetry(id: string) {
     retryJob(id);
@@ -30,14 +34,24 @@ export default function FailedPage() {
 
   const columns: Column<JobRow>[] = [
     {
-      key: 'recipientId',
+      key: 'recipient',
       header: 'Recipient',
-      render: (row) => <span className="font-mono text-xs">{String(row.recipientId).slice(0, 8)}…</span>,
+      render: (row) => {
+        const recipient = row.recipient as { email: string; name: string | null } | undefined;
+        return (
+          <span className="text-sm">
+            {recipient?.email ?? <span className="font-mono text-xs text-slate-400">{String(row.recipientId).slice(0, 8)}…</span>}
+          </span>
+        );
+      },
     },
     {
-      key: 'campaignId',
-      header: 'Campaign',
-      render: (row) => <span className="font-mono text-xs">{String(row.campaignId).slice(0, 8)}…</span>,
+      key: 'campaign',
+      header: 'Subject',
+      render: (row) => {
+        const campaign = row.campaign as { subject: string } | undefined;
+        return <span className="text-sm truncate max-w-[200px]">{campaign?.subject ?? <span className="font-mono text-xs text-slate-400">{String(row.campaignId).slice(0, 8)}…</span>}</span>;
+      },
     },
     {
       key: 'lastError',
@@ -90,7 +104,7 @@ export default function FailedPage() {
 
       <EmailTable<JobRow>
         columns={columns}
-        data={(jobs?.data ?? []) as JobRow[]}
+        data={(jobs?.items ?? []) as JobRow[]}
         isLoading={isLoading}
         emptyMessage="No failed jobs — great work!"
       />

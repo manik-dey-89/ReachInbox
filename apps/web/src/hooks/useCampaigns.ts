@@ -49,6 +49,7 @@ export function useCampaigns(params: ListCampaignsParams = {}) {
     campaigns: listQuery.data,
     isLoading: listQuery.isLoading,
     error: listQuery.error,
+    refetch: listQuery.refetch,
     createCampaign: createMutation.mutate,
     createCampaignAsync: createMutation.mutateAsync,
     isCreating: createMutation.isPending,

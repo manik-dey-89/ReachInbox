@@ -8,9 +8,34 @@ import { StatusBadge } from '@/components/emails/StatusBadge';
 import { Pagination } from '@/components/common/Pagination';
 import { ErrorState } from '@/components/common/ErrorState';
 import { formatDate } from '@/lib/utils';
+import { ExternalLink } from 'lucide-react';
 import type { EmailCampaign } from '@/types';
 
-type CampaignRow = Record<string, unknown> & EmailCampaign;
+interface DeliveryLog {
+  id: string;
+  smtpResponse: string | null;
+  smtpMessageId: string | null;
+  sentAt: string | null;
+  recipientId: string;
+}
+
+type CampaignWithLogs = EmailCampaign & {
+  deliveryLogs?: DeliveryLog[];
+  recipients?: Array<{ id: string; email: string; name: string | null; status: string }>;
+};
+
+type CampaignRow = Record<string, unknown> & CampaignWithLogs;
+
+function getFirstPreviewUrl(row: CampaignRow): string | null {
+  const logs = row.deliveryLogs as DeliveryLog[] | undefined;
+  if (!logs || logs.length === 0) return null;
+  for (const log of logs) {
+    if (log.smtpResponse && log.smtpResponse.startsWith('http')) {
+      return log.smtpResponse;
+    }
+  }
+  return null;
+}
 
 const columns: Column<CampaignRow>[] = [
   { key: 'id', header: 'Campaign ID', render: (row) => <span className="font-mono text-xs">{String(row.id).slice(0, 8)}…</span> },
@@ -37,6 +62,25 @@ const columns: Column<CampaignRow>[] = [
     header: 'Sent',
     render: (row) => `${Number(row.sentCount)} / ${Number(row.totalRecipients)}`,
   },
+  {
+    key: 'preview',
+    header: 'Preview',
+    render: (row) => {
+      const url = getFirstPreviewUrl(row);
+      if (!url) return <span className="text-slate-400 text-xs">—</span>;
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline text-xs"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Ethereal
+        </a>
+      );
+    },
+  },
 ];
 
 export default function SentPage() {
@@ -48,13 +92,13 @@ export default function SentPage() {
     status: 'COMPLETED',
     page,
     pageSize,
-  }) as { campaigns: { data: EmailCampaign[]; total: number } | undefined; isLoading: boolean; error: Error | null; refetch?: () => void };
+  }) as { campaigns: { items: CampaignWithLogs[]; total: number } | undefined; isLoading: boolean; error: Error | null; refetch?: () => void };
 
   const filtered = (() => {
-    if (!campaigns?.data) return [];
-    if (!search.trim()) return campaigns.data;
+    if (!campaigns?.items) return [];
+    if (!search.trim()) return campaigns.items;
     const q = search.toLowerCase();
-    return campaigns.data.filter(
+    return campaigns.items.filter(
       (c) => c.subject.toLowerCase().includes(q) || c.id.toLowerCase().includes(q),
     );
   })();

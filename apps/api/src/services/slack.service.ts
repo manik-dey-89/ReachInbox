@@ -85,15 +85,19 @@ export class SlackService {
 
   async getStatus(
     userId: string,
-  ): Promise<{ connected: boolean; teamName?: string; connectedAt?: Date }> {
+  ): Promise<{ connected: boolean; integration?: { id: string; teamId: string; teamName: string; connectedAt: Date } | null }> {
     const integration = await slackRepository.findByUserId(userId);
     if (!integration || integration.disconnectedAt !== null) {
-      return { connected: false };
+      return { connected: false, integration: null };
     }
     return {
       connected: true,
-      teamName: integration.teamName,
-      connectedAt: integration.connectedAt,
+      integration: {
+        id: integration.id,
+        teamId: integration.teamId,
+        teamName: integration.teamName,
+        connectedAt: integration.connectedAt,
+      },
     };
   }
 

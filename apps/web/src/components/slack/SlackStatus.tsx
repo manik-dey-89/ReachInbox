@@ -3,10 +3,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/lib/utils';
-import type { SlackIntegration } from '@/types';
+
+interface SlackIntegrationSummary {
+  id: string;
+  teamId: string;
+  teamName: string;
+  connectedAt: string | Date;
+}
 
 interface SlackStatusProps {
-  integration: SlackIntegration | null;
+  integration: SlackIntegrationSummary | null;
   isLoading?: boolean;
   onDisconnect?: () => void;
   isDisconnecting?: boolean;

@@ -87,61 +87,68 @@ export class CampaignService {
     const delayBetweenMs = rawCampaign?.delayBetweenMs ?? 1000;
     let jobsScheduled = 0;
 
-    for (let index = 0; index < recipients.length; index++) {
-      const recipient = recipients[index];
-      const delay = Math.max(0, scheduledAt - Date.now()) + index * delayBetweenMs;
-      const scheduledFor = new Date(Date.now() + delay);
+    // Process in batches of 100 to avoid memory spikes with large recipient lists
+    const BATCH_SIZE = 100;
+    for (let batchStart = 0; batchStart < recipients.length; batchStart += BATCH_SIZE) {
+      const batch = recipients.slice(batchStart, batchStart + BATCH_SIZE);
 
-      const idempotencyKey = generateIdempotencyKey(campaignId, recipient.id);
+      for (let batchIdx = 0; batchIdx < batch.length; batchIdx++) {
+        const index = batchStart + batchIdx;
+        const recipient = batch[batchIdx];
+        const delay = Math.max(0, scheduledAt - Date.now()) + index * delayBetweenMs;
+        const scheduledFor = new Date(Date.now() + delay);
 
-      const bullJob = await emailQueue.add(
-        'send-email',
-        {
-          jobId: '', // filled after DB record creation
-          recipientId: recipient.id,
-          campaignId,
-          userId,
-          senderAccountId: campaign.senderAccountId,
-          recipientEmail: recipient.email,
-          recipientName: recipient.name ?? null,
-          subject: campaign.subject,
-          body: campaign.body,
-          attempt: 0,
-          idempotencyKey,
-        },
-        { delay },
-      );
+        const idempotencyKey = generateIdempotencyKey(campaignId, recipient.id);
 
-      try {
-        const dbJob = await jobRepository.create({
-          recipientId: recipient.id,
-          campaignId,
-          bullJobId: bullJob.id ?? String(bullJob.token),
-          scheduledFor,
-        });
+        const bullJob = await emailQueue.add(
+          'send-email',
+          {
+            jobId: '', // filled after DB record creation
+            recipientId: recipient.id,
+            campaignId,
+            userId,
+            senderAccountId: campaign.senderAccountId,
+            recipientEmail: recipient.email,
+            recipientName: recipient.name ?? null,
+            subject: campaign.subject,
+            body: campaign.body,
+            attempt: 0,
+            idempotencyKey,
+          },
+          { delay },
+        );
 
-        // Update the BullMQ job data with the DB job id
-        await bullJob.updateData({
-          jobId: dbJob.id,
-          recipientId: recipient.id,
-          campaignId,
-          userId,
-          senderAccountId: campaign.senderAccountId,
-          recipientEmail: recipient.email,
-          recipientName: recipient.name ?? null,
-          subject: campaign.subject,
-          body: campaign.body,
-          attempt: 0,
-          idempotencyKey,
-        });
+        try {
+          const dbJob = await jobRepository.create({
+            recipientId: recipient.id,
+            campaignId,
+            bullJobId: bullJob.id ?? String(bullJob.token),
+            scheduledFor,
+          });
 
-        jobsScheduled++;
-      } catch (err) {
-        logger.error('Failed to create DB job record', {
-          bullJobId: bullJob.id,
-          recipientId: recipient.id,
-          error: (err as Error).message,
-        });
+          // Update the BullMQ job data with the DB job id
+          await bullJob.updateData({
+            jobId: dbJob.id,
+            recipientId: recipient.id,
+            campaignId,
+            userId,
+            senderAccountId: campaign.senderAccountId,
+            recipientEmail: recipient.email,
+            recipientName: recipient.name ?? null,
+            subject: campaign.subject,
+            body: campaign.body,
+            attempt: 0,
+            idempotencyKey,
+          });
+
+          jobsScheduled++;
+        } catch (err) {
+          logger.error('Failed to create DB job record', {
+            bullJobId: bullJob.id,
+            recipientId: recipient.id,
+            error: (err as Error).message,
+          });
+        }
       }
     }
 
@@ -170,8 +177,9 @@ export class CampaignService {
     userId: string,
     page: number,
     pageSize: number,
+    status?: string,
   ): Promise<PaginatedResponse<EmailCampaign>> {
-    return campaignRepository.findByUserId(userId, page, pageSize);
+    return campaignRepository.findByUserId(userId, page, pageSize, status);
   }
 
   async cancelCampaign(userId: string, campaignId: string): Promise<void> {

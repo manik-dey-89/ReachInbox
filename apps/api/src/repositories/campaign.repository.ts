@@ -33,15 +33,43 @@ export class CampaignRepository {
     userId: string,
     page: number,
     pageSize: number,
+    status?: string,
   ): Promise<PaginatedResult<EmailCampaign>> {
+    const where = {
+      userId,
+      ...(status ? { status } : {}),
+    };
+
     const [items, total] = await Promise.all([
       prisma.emailCampaign.findMany({
-        where: { userId },
+        where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          deliveryLogs: {
+            where: { status: 'SENT' },
+            select: {
+              id: true,
+              smtpResponse: true,
+              smtpMessageId: true,
+              sentAt: true,
+              recipientId: true,
+            },
+            orderBy: { sentAt: 'asc' },
+          },
+          recipients: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              status: true,
+            },
+            take: 5,
+          },
+        },
       }),
-      prisma.emailCampaign.count({ where: { userId } }),
+      prisma.emailCampaign.count({ where }),
     ]);
 
     return {

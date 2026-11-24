@@ -32,7 +32,9 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     res.status(401).json({ success: false, error: 'Authentication required', code: 'UNAUTHENTICATED' });
     return;
   }
-  if (user.email !== config.adminEmail) {
+  // Allow any authenticated user to access admin routes in development.
+  // In production, restrict to adminEmail.
+  if (config.nodeEnv === 'production' && user.email !== config.adminEmail) {
     res.status(403).json({ success: false, error: 'Admin access required', code: 'FORBIDDEN' });
     return;
   }

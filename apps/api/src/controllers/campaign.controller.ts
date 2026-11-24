@@ -16,7 +16,7 @@ const createCampaignSchema = z.object({
       }),
     )
     .min(1),
-  scheduledAt: z.string().datetime(),
+  scheduledAt: z.string().min(1).refine((s) => !isNaN(Date.parse(s)), { message: 'Invalid date/time' }),
   delayBetweenMs: z.number().int().min(0).default(1000),
   hourlyLimit: z.number().int().min(1).optional(),
 });
@@ -41,7 +41,8 @@ export class CampaignController {
       const userId = (req.user as { id: string }).id;
       const page = Math.max(1, Number(req.query.page) || 1);
       const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
-      const result = await campaignService.listCampaigns(userId, page, pageSize);
+      const status = req.query.status as string | undefined;
+      const result = await campaignService.listCampaigns(userId, page, pageSize, status);
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);

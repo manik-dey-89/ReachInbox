@@ -36,36 +36,40 @@ import healthRoutes from './routes/health.routes';
 // ---------------------------------------------------------------------------
 // Passport: Google OAuth Strategy
 // ---------------------------------------------------------------------------
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: config.googleClientId,
-      clientSecret: config.googleClientSecret,
-      callbackURL: config.googleCallbackUrl,
-    },
-    async (_accessToken, _refreshToken, profile, done) => {
-      try {
-        const email =
-          profile.emails?.[0]?.value ?? '';
-        const user = await userRepository.upsertFromOAuth({
-          email,
-          name: profile.displayName,
-          avatar: profile.photos?.[0]?.value,
-          provider: 'GOOGLE',
-          providerAccountId: profile.id,
-          accessToken: _accessToken ?? undefined,
-          refreshToken: _refreshToken ?? undefined,
-        });
+// Passport: Google OAuth Strategy (only register if credentials are configured)
+// ---------------------------------------------------------------------------
+if (config.googleClientId && config.googleClientSecret) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: config.googleClientId,
+        clientSecret: config.googleClientSecret,
+        callbackURL: config.googleCallbackUrl,
+      },
+      async (_accessToken, _refreshToken, profile, done) => {
+        try {
+          const email =
+            profile.emails?.[0]?.value ?? '';
+          const user = await userRepository.upsertFromOAuth({
+            email,
+            name: profile.displayName,
+            avatar: profile.photos?.[0]?.value,
+            provider: 'GOOGLE',
+            providerAccountId: profile.id,
+            accessToken: _accessToken ?? undefined,
+            refreshToken: _refreshToken ?? undefined,
+          });
 
-        await auditService.log(user.id, AuditAction.USER_LOGIN);
+          await auditService.log(user.id, AuditAction.USER_LOGIN);
 
-        return done(null, user);
-      } catch (err) {
-        return done(err as Error);
-      }
-    },
-  ),
-);
+          return done(null, user);
+        } catch (err) {
+          return done(err as Error);
+        }
+      },
+    ),
+  );
+}
 
 passport.serializeUser((user, done) => {
   done(null, (user as { id: string }).id);
@@ -104,9 +108,9 @@ export function createApp(): express.Application {
   // Request logging
   app.use(requestLogger);
 
-  // Session with Redis store
-  // ioredis is compatible with connect-redis when passed as `client`
-  const sessionRedisClient = createRedisClient();
+  // Session with Redis store — lazy client, connect asynchronously
+  const sessionRedisClient = createRedisClient(true);
+  void sessionRedisClient.connect().catch(() => { /* will retry on next request */ });
   const store = new RedisStore({ client: sessionRedisClient });
 
   app.use(
@@ -132,12 +136,14 @@ export function createApp(): express.Application {
   // Routes
   // ---------------------------------------------------------------------------
   app.use('/health', healthRoutes);
-  app.use('/auth', authRoutes);
+  app.use('/api/health', healthRoutes);
+  app.use('/api/auth', authRoutes);
 
   app.use('/api', apiRateLimiter);
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api/campaigns/:id/recipients', recipientRoutes);
   app.use('/api/campaigns/:id/jobs', jobRoutes);
+  app.use('/api/jobs', jobRoutes);
   app.use('/api/senders', senderRoutes);
   app.use('/api/slack', slackRoutes);
   app.use('/api/search', searchRoutes);

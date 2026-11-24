@@ -25,7 +25,7 @@ function defaultScheduledAt(): string {
 export function EmailComposer() {
   const router = useRouter();
   const { createCampaignAsync, scheduleCampaignAsync } = useCampaigns();
-  const { senders } = useSenders();
+  const { senders, createSenderAsync, isCreating: isCreatingSender } = useSenders();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -129,31 +129,64 @@ export function EmailComposer() {
               <CardTitle>Sender</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="sender">Send from</Label>
-                <Controller
-                  name="senderAccountId"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger
-                        id="sender"
-                        error={errors.senderAccountId?.message}
-                      >
-                        <SelectValue placeholder="Select a sender account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {senders.map((sender) => (
-                          <SelectItem key={sender.id} value={sender.id}>
-                            {sender.name} &lt;{sender.email}&gt;
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="sender">Send from</Label>
+                  <Controller
+                    name="senderAccountId"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={senders.length === 0}>
+                        <SelectTrigger
+                          id="sender"
+                          error={errors.senderAccountId?.message}
+                        >
+                          <SelectValue placeholder={senders.length === 0 ? 'No sender accounts — create one below' : 'Select a sender account'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {senders.map((sender) => (
+                            <SelectItem key={sender.id} value={sender.id}>
+                              {sender.name} &lt;{sender.email}&gt;
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.senderAccountId && (
+                    <p className="text-xs text-red-500">{errors.senderAccountId.message}</p>
                   )}
-                />
-                {errors.senderAccountId && (
-                  <p className="text-xs text-red-500">{errors.senderAccountId.message}</p>
+                </div>
+
+                {senders.length === 0 && (
+                  <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 flex flex-col gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">No sender accounts yet</p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
+                        Create a free Ethereal test sender to start sending emails immediately — no SMTP setup needed.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      loading={isCreatingSender}
+                      onClick={async () => {
+                        try {
+                          await createSenderAsync({
+                            name: 'Ethereal Test',
+                            email: 'test@ethereal.email',
+                            useEthereal: true,
+                          } as Parameters<typeof createSenderAsync>[0]);
+                          toast.success('Ethereal test sender created! Emails will show preview links.');
+                        } catch {
+                          toast.error('Failed to create sender');
+                        }
+                      }}
+                    >
+                      ✨ Create Free Ethereal Test Sender
+                    </Button>
+                  </div>
                 )}
               </div>
             </CardContent>

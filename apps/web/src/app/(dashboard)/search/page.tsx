@@ -68,7 +68,7 @@ export default function SearchPage() {
     page,
   });
 
-  const isDegraded = (data as (typeof data & { degraded?: boolean }) | undefined)?.degraded;
+  const isDegraded = data?.degraded === true;
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,7 +137,7 @@ export default function SearchPage() {
         <>
           <EmailTable<SearchRow>
             columns={columns}
-            data={(data?.data ?? []) as SearchRow[]}
+            data={(data?.hits ?? []) as SearchRow[]}
             isLoading={isLoading}
             emptyMessage="No emails match your search."
           />

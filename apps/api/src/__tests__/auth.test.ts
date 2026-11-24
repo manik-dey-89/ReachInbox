@@ -12,16 +12,16 @@ describe('Auth routes', () => {
     });
   });
 
-  describe('GET /auth/me', () => {
+  describe('GET /api/auth/me', () => {
     it('returns 401 when there is no active session', async () => {
-      const res = await request(app).get('/auth/me');
+      const res = await request(app).get('/api/auth/me');
       expect(res.status).toBe(401);
     });
   });
 
-  describe('POST /auth/logout', () => {
+  describe('POST /api/auth/logout', () => {
     it('returns 200 or 401 without a session (endpoint exists)', async () => {
-      const res = await request(app).post('/auth/logout');
+      const res = await request(app).post('/api/auth/logout');
       // The logout endpoint either succeeds (no-op) or rejects unauthenticated callers.
       // Both are valid — what matters is that the route is reachable.
       expect([200, 401]).toContain(res.status);

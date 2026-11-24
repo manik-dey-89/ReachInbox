@@ -172,11 +172,19 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
         },
       });
 
-      // Atomically increment campaign sentCount.
-      await tx.emailCampaign.update({
+      // Atomically increment campaign sentCount and check if all done.
+      const updatedCampaign = await tx.emailCampaign.update({
         where: { id: campaignId },
         data: { sentCount: { increment: 1 } },
       });
+
+      // If all recipients sent, mark campaign COMPLETED.
+      if (updatedCampaign.sentCount >= updatedCampaign.totalRecipients) {
+        await tx.emailCampaign.update({
+          where: { id: campaignId },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        });
+      }
 
       // Audit log.
       await tx.auditLog.create({
@@ -256,11 +264,19 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
         },
       });
 
-      // Atomically increment campaign failedCount.
-      await tx.emailCampaign.update({
+      // Atomically increment campaign failedCount and check if all done.
+      const updatedCampaignFail = await tx.emailCampaign.update({
         where: { id: campaignId },
         data: { failedCount: { increment: 1 } },
       });
+
+      // If all recipients processed (sent + failed >= total), mark campaign COMPLETED.
+      if ((updatedCampaignFail.sentCount + updatedCampaignFail.failedCount) >= updatedCampaignFail.totalRecipients) {
+        await tx.emailCampaign.update({
+          where: { id: campaignId },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        });
+      }
 
       // Audit log.
       await tx.auditLog.create({

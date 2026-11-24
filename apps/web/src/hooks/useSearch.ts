@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import type { SearchResult, PaginatedResponse } from '@/types';
+import type { SearchResult } from '@/types';
 
 interface SearchParams {
   q: string;
@@ -10,8 +10,8 @@ interface SearchParams {
   page?: number;
 }
 
-async function searchEmails(params: SearchParams): Promise<PaginatedResponse<SearchResult>> {
-  const res = await api.get<{ data: PaginatedResponse<SearchResult> }>('/api/search/emails', {
+async function searchEmails(params: SearchParams): Promise<{ hits: SearchResult[]; total: number; page: number; pageSize: number; degraded?: boolean }> {
+  const res = await api.get<{ data: { hits: SearchResult[]; total: number; page: number; pageSize: number; degraded?: boolean } }>('/api/search/emails', {
     params: {
       query: params.q,
       status: params.status,
@@ -24,7 +24,7 @@ async function searchEmails(params: SearchParams): Promise<PaginatedResponse<Sea
 }
 
 export function useSearch(params: SearchParams) {
-  return useQuery<PaginatedResponse<SearchResult>>({
+  return useQuery<{ hits: SearchResult[]; total: number; page: number; pageSize: number; degraded?: boolean }>({
     queryKey: ['search', 'emails', params],
     queryFn: () => searchEmails(params),
     enabled: params.q.length > 0,

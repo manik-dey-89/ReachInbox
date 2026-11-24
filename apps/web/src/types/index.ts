@@ -1,13 +1,13 @@
 // Re-export everything from @reachinbox/shared
 export * from '@reachinbox/shared';
 
-// Frontend-specific types
-
+// Frontend-specific types — matches backend PaginatedResponse shape
 export interface PaginatedResponse<T> {
-  data: T[];
+  items: T[];
   total: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 }
 
 export interface SearchResult {

@@ -19,15 +19,15 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   SESSION_MAX_AGE_MS: z.string().default('86400000').transform(Number),
 
-  // Google OAuth
-  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
-  GOOGLE_CALLBACK_URL: z.string().url('GOOGLE_CALLBACK_URL must be a valid URL'),
+  // Google OAuth (optional at startup — required for OAuth login flow)
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3001/api/auth/google/callback'),
 
-  // Slack OAuth
-  SLACK_CLIENT_ID: z.string().min(1, 'SLACK_CLIENT_ID is required'),
-  SLACK_CLIENT_SECRET: z.string().min(1, 'SLACK_CLIENT_SECRET is required'),
-  SLACK_REDIRECT_URI: z.string().url('SLACK_REDIRECT_URI must be a valid URL'),
+  // Slack OAuth (fully optional — app works without Slack)
+  SLACK_CLIENT_ID: z.string().default(''),
+  SLACK_CLIENT_SECRET: z.string().default(''),
+  SLACK_REDIRECT_URI: z.string().default('http://localhost:3001/api/slack/callback'),
 
   // Encryption
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be a 64-character hex string (32 bytes)'),

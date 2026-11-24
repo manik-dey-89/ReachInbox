@@ -1,12 +1,18 @@
 import { Queue } from 'bullmq';
-import { createRedisClient } from './redis';
+import { config } from './index';
 import type { EmailJobPayload } from '@reachinbox/shared';
 
-// Create a dedicated Redis connection for BullMQ (required by BullMQ).
-const queueConnection = createRedisClient();
+// BullMQ manages its own Redis connection internally when given connection options.
+// Passing a plain options object (not an ioredis instance) avoids lazyConnect issues.
+const redisOptions = {
+  host: new URL(config.redisUrl).hostname,
+  port: Number(new URL(config.redisUrl).port) || 6379,
+  maxRetriesPerRequest: null as null,
+  enableReadyCheck: false,
+};
 
 const emailQueue = new Queue<EmailJobPayload>('email-queue', {
-  connection: queueConnection,
+  connection: redisOptions,
   defaultJobOptions: {
     removeOnComplete: { count: 1000 },
     removeOnFail: { count: 5000 },
@@ -18,4 +24,4 @@ const emailQueue = new Queue<EmailJobPayload>('email-queue', {
   },
 });
 
-export { emailQueue, queueConnection };
+export { emailQueue, redisOptions };

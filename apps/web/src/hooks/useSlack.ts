@@ -1,10 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import type { SlackIntegration } from '@/types';
+
+interface SlackIntegrationSummary {
+  id: string;
+  teamId: string;
+  teamName: string;
+  connectedAt: string;
+}
 
 interface SlackStatus {
   connected: boolean;
-  integration: SlackIntegration | null;
+  integration: SlackIntegrationSummary | null;
 }
 
 async function fetchSlackStatus(): Promise<SlackStatus> {
@@ -13,7 +19,7 @@ async function fetchSlackStatus(): Promise<SlackStatus> {
 }
 
 async function disconnectSlack(): Promise<void> {
-  await api.delete('/api/slack/disconnect');
+  await api.post('/api/slack/disconnect');
 }
 
 export function useSlack() {

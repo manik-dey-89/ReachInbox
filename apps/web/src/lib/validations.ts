@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const composeEmailSchema = z.object({
   subject: z.string().min(1, 'Subject is required'),
   body: z.string().min(1, 'Body is required'),
-  senderAccountId: z.string().uuid('Invalid sender account'),
+  senderAccountId: z.string().min(1, 'Please select a sender account'),
   recipients: z
     .array(
       z.object({
@@ -12,7 +12,7 @@ export const composeEmailSchema = z.object({
       }),
     )
     .min(1, 'At least one recipient is required'),
-  scheduledAt: z.string().datetime({ message: 'Invalid date/time' }),
+  scheduledAt: z.string().min(1, 'Scheduled time is required'),
   delayBetweenMs: z.number().min(0, 'Delay must be 0 or greater'),
   hourlyLimit: z
     .number()

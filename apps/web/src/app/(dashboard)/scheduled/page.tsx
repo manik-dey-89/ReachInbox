@@ -48,18 +48,18 @@ export default function ScheduledPage() {
     status: 'SCHEDULED',
     page,
     pageSize,
-  }) as { campaigns: { data: EmailCampaign[]; total: number } | undefined; isLoading: boolean; error: Error | null; refetch?: () => void };
+  }) as { campaigns: { items: EmailCampaign[]; total: number } | undefined; isLoading: boolean; error: Error | null; refetch?: () => void };
 
   const filtered = useMemo(() => {
-    if (!campaigns?.data) return [];
-    if (!search.trim()) return campaigns.data;
+    if (!campaigns?.items) return [];
+    if (!search.trim()) return campaigns.items;
     const q = search.toLowerCase();
-    return campaigns.data.filter(
+    return campaigns.items.filter(
       (c) =>
         c.subject.toLowerCase().includes(q) ||
         c.id.toLowerCase().includes(q),
     );
-  }, [campaigns?.data, search]);
+  }, [campaigns?.items, search]);
 
   if (error) {
     return (

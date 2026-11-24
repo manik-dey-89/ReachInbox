@@ -117,9 +117,11 @@ vi.mock('../config/queue', () => ({
     close: vi.fn().mockResolvedValue(undefined),
     on: vi.fn().mockReturnThis(),
   },
-  queueConnection: {
-    on: vi.fn().mockReturnThis(),
-    disconnect: vi.fn(),
+  redisOptions: {
+    host: 'localhost',
+    port: 6379,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
   },
 }));
 

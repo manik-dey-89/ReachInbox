@@ -2,11 +2,11 @@ import Redis from 'ioredis';
 import { config } from './index';
 import logger from '../utils/logger';
 
-function createRedisClient(): Redis {
+function createRedisClient(lazyConnect = false): Redis {
   const client = new Redis(config.redisUrl, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    lazyConnect: true,
+    lazyConnect,
   });
 
   client.on('error', (err: Error) => {
@@ -24,7 +24,7 @@ function createRedisClient(): Redis {
   return client;
 }
 
-// Singleton for general use
-const redis = createRedisClient();
+// Singleton for general use — lazyConnect so we can call .connect() explicitly in main()
+const redis = createRedisClient(true);
 
 export { redis, createRedisClient };
