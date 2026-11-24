@@ -1,5 +1,6 @@
 import { config } from './config';
 import logger from './utils/logger';
+import { startInlineWorker, closeInlineWorker } from './worker/inline-worker';
 
 async function main(): Promise<void> {
   console.log('[startup] main() called, loading singletons...');
@@ -52,11 +53,24 @@ async function main(): Promise<void> {
   });
 
   // ---------------------------------------------------------------------------
+  // Inline BullMQ worker (optional).
+  // When ENABLE_INLINE_WORKER=true a Worker runs inside this process so a
+  // single Render free web service can drain the queue without a paid
+  // background worker. Disabled by default; the standalone apps/worker entry
+  // point remains available for dedicated deployments.
+  // ---------------------------------------------------------------------------
+  const inlineWorker = await startInlineWorker();
+
+  // ---------------------------------------------------------------------------
   // Graceful shutdown
   // ---------------------------------------------------------------------------
   async function shutdown(signal: string): Promise<void> {
     logger.info(`${signal} received — shutting down gracefully`);
 
+    // 1. Drain in-flight jobs and close the inline worker first.
+    await closeInlineWorker(inlineWorker);
+
+    // 2. Stop accepting new HTTP requests, then release DB/Redis connections.
     server.close(async () => {
       logger.info('HTTP server closed');
 
