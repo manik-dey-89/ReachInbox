@@ -1,10 +1,17 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
+import { slackController } from '../controllers/slack.controller';
 
 const router = Router();
 
-router.use(requireAuth);
+// Connect initiates OAuth — user must be logged in
+router.get('/connect', requireAuth, slackController.connect.bind(slackController));
 
-router.get('/status', (_req, res) => res.json({ success: true, data: { connected: false } }));
+// Callback from Slack (no requireAuth — Slack redirects here directly)
+router.get('/callback', slackController.callback.bind(slackController));
+
+// Status and disconnect require auth
+router.get('/status', requireAuth, slackController.status.bind(slackController));
+router.post('/disconnect', requireAuth, slackController.disconnect.bind(slackController));
 
 export default router;

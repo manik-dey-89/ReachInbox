@@ -57,7 +57,7 @@ passport.use(
           refreshToken: _refreshToken ?? undefined,
         });
 
-        await auditService.log({ userId: user.id, action: AuditAction.USER_LOGIN });
+        await auditService.log(user.id, AuditAction.USER_LOGIN);
 
         return done(null, user);
       } catch (err) {
@@ -136,8 +136,8 @@ export function createApp(): express.Application {
 
   app.use('/api', apiRateLimiter);
   app.use('/api/campaigns', campaignRoutes);
-  app.use('/api/recipients', recipientRoutes);
-  app.use('/api/jobs', jobRoutes);
+  app.use('/api/campaigns/:id/recipients', recipientRoutes);
+  app.use('/api/campaigns/:id/jobs', jobRoutes);
   app.use('/api/senders', senderRoutes);
   app.use('/api/slack', slackRoutes);
   app.use('/api/search', searchRoutes);
