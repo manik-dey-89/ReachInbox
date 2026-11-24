@@ -1,6 +1,6 @@
 import { redis } from '../config/redis';
 import { config } from '../config';
-import type { RateLimitStatus } from '@reachinbox/shared';
+import type { RateLimitStatus } from '../shared-index';
 
 // Lua script for atomic check-and-increment:
 // KEYS[1] = rate key

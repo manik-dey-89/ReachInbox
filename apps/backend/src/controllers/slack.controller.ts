@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { slackService } from '../services/slack.service';
 import { auditService } from '../services/audit.service';
 import { ApiError } from '../middleware/errorHandler';
-import { AuditAction } from '@reachinbox/shared';
+import { AuditAction } from '../shared-index';
 import { config } from '../config';
 import crypto from 'crypto';
 

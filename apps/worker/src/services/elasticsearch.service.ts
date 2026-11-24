@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { config } from '../config';
 import logger from '../utils/logger';
-import type { EmailSearchDocument } from '@reachinbox/shared';
+import type { EmailSearchDocument } from '../shared-index';
 
 const esClient = new Client({
   node: config.elasticsearchUrl,

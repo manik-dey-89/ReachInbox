@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { decryptPassword } from '../utils/crypto';
-import type { SenderAccount } from '@reachinbox/shared';
+import type { SenderAccount } from '../shared-index';
 
 export interface SenderAccountWithPass extends SenderAccount {
   smtpPassEncrypted: string;

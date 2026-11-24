@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { AuditAction, RecentActivityItem } from '@reachinbox/shared';
+import type { AuditAction, RecentActivityItem } from '../shared-index';
 import logger from '../utils/logger';
 
 export class AuditService {

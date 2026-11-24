@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
-import type { User } from '@reachinbox/shared';
+import type { User } from '../shared-index';
 
 // Augment Express global namespace so req.user is typed as our User
 declare global {

@@ -5,8 +5,8 @@ import { jobRepository } from '../repositories/job.repository';
 import { emailQueue } from '../config/queue';
 import { auditService } from './audit.service';
 import { ApiError } from '../middleware/errorHandler';
-import type { EmailCampaign, CreateCampaignRequest, PaginatedResponse } from '@reachinbox/shared';
-import { AuditAction } from '@reachinbox/shared';
+import type { EmailCampaign, CreateCampaignRequest, PaginatedResponse } from '../shared-index';
+import { AuditAction } from '../shared-index';
 import { generateIdempotencyKey } from '../utils/idempotency';
 import logger from '../utils/logger';
 

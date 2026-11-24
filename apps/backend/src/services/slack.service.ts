@@ -1,7 +1,7 @@
 import https from 'node:https';
 import { config } from '../config';
 import { slackRepository } from '../repositories/slack.repository';
-import type { SlackIntegration } from '@reachinbox/shared';
+import type { SlackIntegration } from '../shared-index';
 import logger from '../utils/logger';
 
 export interface SlackTokenResponse {

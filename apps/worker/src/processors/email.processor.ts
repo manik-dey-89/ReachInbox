@@ -1,5 +1,5 @@
 import { Job } from 'bullmq';
-import type { EmailJobPayload } from '@reachinbox/shared';
+import type { EmailJobPayload } from '../shared-index';
 import { prisma } from '../config/database';
 import { emailService } from '../services/email.service';
 import { rateLimitService } from '../services/rateLimit.service';

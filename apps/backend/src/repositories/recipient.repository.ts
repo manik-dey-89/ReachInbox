@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { EmailRecipient } from '@reachinbox/shared';
+import type { EmailRecipient } from '../shared-index';
 import type { PaginatedResult } from './campaign.repository';
 
 export interface CreateRecipientData {

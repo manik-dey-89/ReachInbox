@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
 import { createRedisClient } from '../config/redis';
-import type { EmailJobPayload } from '@reachinbox/shared';
+import type { EmailJobPayload } from '../shared-index';
 
 export const emailQueue = new Queue<EmailJobPayload>('email-queue', {
   connection: createRedisClient(),

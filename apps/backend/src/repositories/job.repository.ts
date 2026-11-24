@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { EmailJob } from '@reachinbox/shared';
+import type { EmailJob } from '../shared-index';
 
 export interface CreateJobData {
   recipientId: string;

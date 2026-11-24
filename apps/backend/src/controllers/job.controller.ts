@@ -4,7 +4,7 @@ import { campaignRepository } from '../repositories/campaign.repository';
 import { rateLimitService } from '../services/rateLimit.service';
 import { emailQueue } from '../config/queue';
 import { ApiError } from '../middleware/errorHandler';
-import type { PaginatedResponse } from '@reachinbox/shared';
+import type { PaginatedResponse } from '../shared-index';
 
 export class JobController {
   async listByCampaign(req: Request, res: Response, next: NextFunction): Promise<void> {

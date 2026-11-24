@@ -20,7 +20,7 @@ import { apiRateLimiter } from './middleware/rateLimiter';
 
 import { userRepository } from './repositories/user.repository';
 import { auditService } from './services/audit.service';
-import { AuditAction } from '@reachinbox/shared';
+import { AuditAction } from './shared-index';
 
 import authRoutes from './routes/auth.routes';
 import campaignRoutes from './routes/campaign.routes';

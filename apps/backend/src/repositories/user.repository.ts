@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { User } from '@reachinbox/shared';
+import type { User } from '../shared-index';
 
 interface OAuthProfile {
   email: string;

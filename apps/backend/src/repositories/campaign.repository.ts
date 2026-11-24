@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { EmailCampaign, DashboardStats } from '@reachinbox/shared';
+import type { EmailCampaign, DashboardStats } from '../shared-index';
 
 export interface CreateCampaignData {
   userId: string;

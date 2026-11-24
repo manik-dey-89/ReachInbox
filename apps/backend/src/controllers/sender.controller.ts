@@ -5,7 +5,7 @@ import { emailService } from '../services/email.service';
 import { auditService } from '../services/audit.service';
 import { encryptPassword } from '../utils/crypto';
 import { ApiError } from '../middleware/errorHandler';
-import { AuditAction } from '@reachinbox/shared';
+import { AuditAction } from '../shared-index';
 
 const createSenderSchema = z.object({
   name: z.string().min(1).max(100),

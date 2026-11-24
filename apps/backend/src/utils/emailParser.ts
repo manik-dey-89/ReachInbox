@@ -1,4 +1,4 @@
-import type { RecipientInput } from '@reachinbox/shared';
+import type { RecipientInput } from '../shared-index';
 
 // RFC-5321 simplified regex — covers the overwhelming majority of valid addresses.
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;

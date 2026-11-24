@@ -1,4 +1,4 @@
-import type { User } from '@reachinbox/shared';
+import type { User } from '../shared-index';
 import { ApiError } from '../middleware/errorHandler';
 import { userRepository } from '../repositories/user.repository';
 import { redis } from '../config/redis';

@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
 import { config } from './index';
-import type { EmailJobPayload } from '@reachinbox/shared';
+import type { EmailJobPayload } from '../shared-index';
 
 // BullMQ manages its own Redis connection internally when given connection options.
 // Passing a plain options object (not an ioredis instance) avoids lazyConnect issues.

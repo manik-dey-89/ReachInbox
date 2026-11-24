@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { SlackIntegration } from '@reachinbox/shared';
+import type { SlackIntegration } from '../shared-index';
 
 export interface CreateSlackData {
   userId: string;

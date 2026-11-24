@@ -1,7 +1,7 @@
 import { campaignRepository } from '../repositories/campaign.repository';
 import { rateLimitService } from './rateLimit.service';
 import { auditService } from './audit.service';
-import type { DashboardStats } from '@reachinbox/shared';
+import type { DashboardStats } from '../shared-index';
 import { prisma } from '../config/database';
 
 export class DashboardService {

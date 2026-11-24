@@ -1,5 +1,5 @@
 import { esClient } from '../config/elasticsearch';
-import type { EmailSearchDocument, SearchEmailsRequest, SearchEmailsResponse } from '@reachinbox/shared';
+import type { EmailSearchDocument, SearchEmailsRequest, SearchEmailsResponse } from '../shared-index';
 import logger from '../utils/logger';
 
 const DEGRADED_RESPONSE: SearchEmailsResponse = {

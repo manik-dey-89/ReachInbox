@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { elasticsearchService } from '../services/elasticsearch.service';
-import type { SearchEmailsRequest } from '@reachinbox/shared';
+import type { SearchEmailsRequest } from '../shared-index';
 
 export class SearchController {
   async searchEmails(req: Request, res: Response, next: NextFunction): Promise<void> {

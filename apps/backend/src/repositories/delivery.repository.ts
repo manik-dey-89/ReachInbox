@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { EmailDeliveryLog } from '@reachinbox/shared';
+import type { EmailDeliveryLog } from '../shared-index';
 import type { PaginatedResult } from './campaign.repository';
 
 export interface CreateDeliveryData {
