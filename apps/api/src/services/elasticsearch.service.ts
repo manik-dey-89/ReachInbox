@@ -112,8 +112,115 @@ export class ElasticsearchService {
 
       return { hits, total, page, pageSize };
     } catch (err) {
-      logger.error('ES searchEmails failed', { index, error: (err as Error).message });
-      return { ...DEGRADED_RESPONSE, page, pageSize };
+      logger.warn('ES searchEmails failed — falling back to database', { index, error: (err as Error).message });
+      return this.searchEmailsFromDb(userId, params);
+    }
+  }
+
+  // Database fallback when Elasticsearch is unavailable
+  private async searchEmailsFromDb(
+    userId: string,
+    params: SearchEmailsRequest,
+  ): Promise<SearchEmailsResponse> {
+    const { prisma } = await import('../config/database');
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 10));
+    const skip = (page - 1) * pageSize;
+
+    try {
+      // Build where clause - userId must be on the campaign relation
+      // AND the text search is an OR across recipient email / campaign subject
+      const whereJob: Record<string, unknown> = {
+        campaign: { userId },
+      };
+
+      if (params.status) {
+        whereJob.status = params.status;
+      }
+
+      if (params.dateFrom || params.dateTo) {
+        const range: Record<string, Date> = {};
+        if (params.dateFrom) range.gte = new Date(params.dateFrom);
+        if (params.dateTo) range.lte = new Date(params.dateTo);
+        whereJob.processedAt = range;
+      }
+
+      // Text search: use AND with the userId constraint via nested where
+      // We need campaign.userId AND (recipient.email LIKE q OR campaign.subject LIKE q)
+      if (params.query) {
+        const q = params.query.toLowerCase();
+        // Override the where to use AND combination properly
+        const textFilter = {
+          AND: [
+            { campaign: { userId } },
+            ...(params.status ? [{ status: params.status }] : []),
+            ...(whereJob.processedAt ? [{ processedAt: whereJob.processedAt }] : []),
+            {
+              OR: [
+                { recipient: { email: { contains: q, mode: 'insensitive' as const } } },
+                { campaign: { subject: { contains: q, mode: 'insensitive' as const } } },
+              ],
+            },
+          ],
+        };
+
+        const [jobs, total] = await Promise.all([
+          prisma.emailJob.findMany({
+            where: textFilter,
+            include: {
+              recipient: { select: { email: true, name: true } },
+              campaign: { select: { subject: true } },
+            },
+            orderBy: { createdAt: 'desc' as const },
+            skip,
+            take: pageSize,
+          }),
+          prisma.emailJob.count({ where: textFilter }),
+        ]);
+
+        const hits: EmailSearchDocument[] = jobs.map((job) => ({
+          id: job.id,
+          campaignId: job.campaignId,
+          recipientEmail: job.recipient?.email ?? '',
+          subject: (job.campaign as { subject: string } | null)?.subject ?? '',
+          status: job.status,
+          scheduledAt: job.scheduledFor?.toISOString() ?? null,
+          sentAt: job.processedAt?.toISOString() ?? null,
+          errorMessage: job.lastError ?? null,
+        }));
+
+        return { hits, total, page, pageSize, degraded: true };
+      }
+
+      const [jobs, total] = await Promise.all([
+        prisma.emailJob.findMany({
+          where: whereJob,
+          include: {
+            recipient: { select: { email: true, name: true } },
+            campaign: { select: { subject: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: pageSize,
+        }),
+        prisma.emailJob.count({ where: whereJob }),
+      ]);
+
+      const hits: EmailSearchDocument[] = jobs.map((job) => ({
+        id: job.id,
+        campaignId: job.campaignId,
+        recipientEmail: job.recipient?.email ?? '',
+        subject: job.campaign?.subject ?? '',
+        status: job.status,
+        scheduledAt: job.scheduledFor?.toISOString() ?? null,
+        sentAt: job.processedAt?.toISOString() ?? null,
+        errorMessage: job.lastError ?? null,
+      }));
+
+      return { hits, total, page, pageSize, degraded: true };
+    } catch (dbErr) {
+      logger.error('DB fallback search also failed', { error: (dbErr as Error).message });
+      return { hits: [], total: 0, page, pageSize, degraded: true };
     }
   }
 

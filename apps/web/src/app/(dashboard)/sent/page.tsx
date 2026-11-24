@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCampaigns } from '@/hooks/useCampaigns';
+import { useEmails, type EmailRow } from '@/hooks/useEmails';
 import { EmailTable, type Column } from '@/components/emails/EmailTable';
 import { EmailSearch } from '@/components/emails/EmailSearch';
 import { StatusBadge } from '@/components/emails/StatusBadge';
@@ -9,48 +9,27 @@ import { Pagination } from '@/components/common/Pagination';
 import { ErrorState } from '@/components/common/ErrorState';
 import { formatDate } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
-import type { EmailCampaign } from '@/types';
 
-interface DeliveryLog {
-  id: string;
-  smtpResponse: string | null;
-  smtpMessageId: string | null;
-  sentAt: string | null;
-  recipientId: string;
-}
+type EmailRowRecord = Record<string, unknown> & EmailRow;
 
-type CampaignWithLogs = EmailCampaign & {
-  deliveryLogs?: DeliveryLog[];
-  recipients?: Array<{ id: string; email: string; name: string | null; status: string }>;
-};
-
-type CampaignRow = Record<string, unknown> & CampaignWithLogs;
-
-function getFirstPreviewUrl(row: CampaignRow): string | null {
-  const logs = row.deliveryLogs as DeliveryLog[] | undefined;
-  if (!logs || logs.length === 0) return null;
-  for (const log of logs) {
-    if (log.smtpResponse && log.smtpResponse.startsWith('http')) {
-      return log.smtpResponse;
-    }
-  }
-  return null;
-}
-
-const columns: Column<CampaignRow>[] = [
-  { key: 'id', header: 'Campaign ID', render: (row) => <span className="font-mono text-xs">{String(row.id).slice(0, 8)}…</span> },
+const columns: Column<EmailRowRecord>[] = [
+  {
+    key: 'recipientEmail',
+    header: 'Recipient Email',
+    render: (row) => (
+      <span className="font-mono text-sm">{String(row.recipientEmail)}</span>
+    ),
+  },
   { key: 'subject', header: 'Subject' },
   {
-    key: 'completedAt',
+    key: 'sentAt',
     header: 'Sent Time',
     render: (row) =>
-      row.completedAt
-        ? formatDate(
-            row.completedAt instanceof Date
-              ? row.completedAt.toISOString()
-              : String(row.completedAt),
-          )
-        : '—',
+      row.sentAt
+        ? formatDate(String(row.sentAt))
+        : row.processedAt
+          ? formatDate(String(row.processedAt))
+          : '—',
   },
   {
     key: 'status',
@@ -58,15 +37,10 @@ const columns: Column<CampaignRow>[] = [
     render: (row) => <StatusBadge status={String(row.status)} />,
   },
   {
-    key: 'sentCount',
-    header: 'Sent',
-    render: (row) => `${Number(row.sentCount)} / ${Number(row.totalRecipients)}`,
-  },
-  {
-    key: 'preview',
+    key: 'previewUrl',
     header: 'Preview',
     render: (row) => {
-      const url = getFirstPreviewUrl(row);
+      const url = row.previewUrl as string | null;
       if (!url) return <span className="text-slate-400 text-xs">—</span>;
       return (
         <a
@@ -88,23 +62,15 @@ export default function SentPage() {
   const [search, setSearch] = useState('');
   const pageSize = 20;
 
-  const { campaigns, isLoading, error, refetch } = useCampaigns({
-    status: 'COMPLETED',
+  const { emails, isLoading, error, refetch } = useEmails({
+    view: 'sent',
     page,
     pageSize,
-  }) as { campaigns: { items: CampaignWithLogs[]; total: number } | undefined; isLoading: boolean; error: Error | null; refetch?: () => void };
-
-  const filtered = (() => {
-    if (!campaigns?.items) return [];
-    if (!search.trim()) return campaigns.items;
-    const q = search.toLowerCase();
-    return campaigns.items.filter(
-      (c) => c.subject.toLowerCase().includes(q) || c.id.toLowerCase().includes(q),
-    );
-  })();
+    q: search || undefined,
+  });
 
   if (error) {
-    return <ErrorState message="Failed to load sent campaigns." retry={() => refetch?.()} />;
+    return <ErrorState message="Failed to load sent emails." retry={() => refetch()} />;
   }
 
   return (
@@ -114,21 +80,21 @@ export default function SentPage() {
       <EmailSearch
         value={search}
         onChange={(v) => { setSearch(v); setPage(1); }}
-        placeholder="Search by subject or campaign ID…"
+        placeholder="Search by recipient email or subject…"
       />
 
-      <EmailTable<CampaignRow>
+      <EmailTable<EmailRowRecord>
         columns={columns}
-        data={filtered as CampaignRow[]}
+        data={(emails?.items ?? []) as EmailRowRecord[]}
         isLoading={isLoading}
-        emptyMessage="No completed campaigns found."
+        emptyMessage="No sent emails found."
       />
 
-      {!isLoading && campaigns && (
+      {!isLoading && emails && (
         <Pagination
           page={page}
           pageSize={pageSize}
-          total={campaigns.total}
+          total={emails.total}
           onPageChange={setPage}
         />
       )}

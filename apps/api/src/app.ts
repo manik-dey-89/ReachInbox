@@ -24,6 +24,7 @@ import { AuditAction } from '@reachinbox/shared';
 
 import authRoutes from './routes/auth.routes';
 import campaignRoutes from './routes/campaign.routes';
+import emailRoutes from './routes/email.routes';
 import recipientRoutes from './routes/recipient.routes';
 import jobRoutes from './routes/job.routes';
 import senderRoutes from './routes/sender.routes';
@@ -141,6 +142,7 @@ export function createApp(): express.Application {
 
   app.use('/api', apiRateLimiter);
   app.use('/api/campaigns', campaignRoutes);
+  app.use('/api/emails', emailRoutes);
   app.use('/api/campaigns/:id/recipients', recipientRoutes);
   app.use('/api/campaigns/:id/jobs', jobRoutes);
   app.use('/api/jobs', jobRoutes);
