@@ -44,21 +44,30 @@ function httpsPost(url: string, body: string): Promise<unknown> {
 
 export class SlackService {
   getAuthUrl(state: string): string {
+    // Always use the full backend URL for the redirect_uri.
+    // This must exactly match what is registered in the Slack App's
+    // OAuth & Permissions → Redirect URLs.
+    // We derive it from the request origin rather than a potentially-wrong
+    // env var so it always matches the actual backend URL.
+    const redirectUri = `${process.env.SLACK_REDIRECT_URI || 'http://localhost:3001/api/slack/callback'}`;
+
     const params = new URLSearchParams({
       client_id: config.slackClientId,
       scope: 'incoming-webhook',
-      redirect_uri: config.slackRedirectUri,
+      redirect_uri: redirectUri,
       state,
     });
     return `https://slack.com/oauth/v2/authorize?${params.toString()}`;
   }
 
   async exchangeCode(code: string): Promise<SlackTokenResponse> {
+    const redirectUri = process.env.SLACK_REDIRECT_URI || 'http://localhost:3001/api/slack/callback';
+
     const body = new URLSearchParams({
       code,
       client_id: config.slackClientId,
       client_secret: config.slackClientSecret,
-      redirect_uri: config.slackRedirectUri,
+      redirect_uri: redirectUri,
     }).toString();
 
     const data = (await httpsPost('https://slack.com/api/oauth.v2.access', body)) as SlackTokenResponse & {
