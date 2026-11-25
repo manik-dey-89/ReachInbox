@@ -112,29 +112,38 @@ export default function MonitoringPage() {
         ))}
       </div>
 
-      {/* Bull Board iframe */}
+      {/* Bull Board — opened in a new tab instead of an iframe.
+          The iframe is unreliable in production: the backend lives on a
+          different origin, and browsers block third-party cookies inside
+          cross-origin iframes, so the admin session cookie never reaches
+          the backend and Bull Board shows "UNAUTHENTICATED". */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Bull Board</CardTitle>
-            <a
-              href="/admin/queues"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Open in new tab
-            </a>
-          </div>
+          <CardTitle>Bull Board</CardTitle>
         </CardHeader>
-        <CardContent>
-          <iframe
-            src="/admin/queues"
-            title="Bull Board Queue Monitor"
-            className="w-full rounded-lg border border-slate-200 dark:border-slate-700"
-            style={{ height: 600 }}
-          />
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Bull Board runs on the backend domain and needs your admin session,
+            so it opens in a new tab. Your login session carries over.
+          </p>
+          <a
+            href={`${process.env.NEXT_PUBLIC_API_URL || ''}/admin/queues`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open Bull Board
+          </a>
+          <a
+            href="/admin/queues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Open via app proxy (use if the direct link fails)
+          </a>
         </CardContent>
       </Card>
 

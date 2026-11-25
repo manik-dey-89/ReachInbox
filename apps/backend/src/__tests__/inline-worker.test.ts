@@ -85,6 +85,7 @@ beforeEach(() => {
   db.emailDeliveryLog = {
     findFirst: vi.fn().mockResolvedValue(null),
     create: vi.fn().mockResolvedValue({}),
+    upsert: vi.fn().mockResolvedValue({}),
   };
   db.emailRecipient = { update: vi.fn().mockResolvedValue({}) };
   db.emailCampaign = {
@@ -243,8 +244,11 @@ describe('processEmailJob', () => {
     db.senderAccount.findUnique.mockResolvedValue(senderAccountRecord);
     mail.sendEmail.mockRejectedValue(new Error('smtp down'));
     await expect(processEmailJob(makeJob())).rejects.toThrow('smtp down');
-    expect(db.emailDeliveryLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) }),
+    expect(db.emailDeliveryLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { emailJobId_status: { emailJobId: 'job-1', status: 'FAILED' } },
+        create: expect.objectContaining({ status: 'FAILED' }),
+      }),
     );
     expect(db.emailRecipient.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED', failureReason: 'smtp down' }) }),

@@ -43,6 +43,8 @@ services:
         value: "50"
       - key: ELASTICSEARCH_URL
         sync: false
+      - key: ADMIN_EMAIL
+        sync: false
 
   - type: worker
     name: reachinbox-worker

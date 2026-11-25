@@ -233,15 +233,20 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
 
     // All failure-path DB writes in a single transaction.
     await prisma.$transaction(async (tx) => {
-      // Create FAILED delivery log.
-      await tx.emailDeliveryLog.create({
-        data: {
+      // Upsert the FAILED delivery log so retries don't violate the
+      // @@unique([emailJobId, status]) constraint on EmailDeliveryLog.
+      await tx.emailDeliveryLog.upsert({
+        where: { emailJobId_status: { emailJobId: jobId, status: 'FAILED' } },
+        create: {
           emailJobId: jobId,
           recipientId,
           campaignId,
           status: 'FAILED',
           smtpResponse: errorMessage,
           sentAt: null,
+        },
+        update: {
+          smtpResponse: errorMessage,
         },
       });
 
@@ -264,18 +269,26 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
         },
       });
 
-      // Atomically increment campaign failedCount and check if all done.
-      const updatedCampaignFail = await tx.emailCampaign.update({
-        where: { id: campaignId },
-        data: { failedCount: { increment: 1 } },
-      });
+      // Only increment campaign failedCount and check completion on the final
+      // attempt (when BullMQ won't retry again). This avoids counting one
+      // recipient as failed multiple times if the job is retried.
+      const isFinalAttempt =
+        job.attemptsMade >= (job.opts?.attempts ?? 1) - 1;
 
-      // If all recipients processed (sent + failed >= total), mark campaign COMPLETED.
-      if ((updatedCampaignFail.sentCount + updatedCampaignFail.failedCount) >= updatedCampaignFail.totalRecipients) {
-        await tx.emailCampaign.update({
+      if (isFinalAttempt) {
+        // Atomically increment campaign failedCount and check if all done.
+        const updatedCampaignFail = await tx.emailCampaign.update({
           where: { id: campaignId },
-          data: { status: 'COMPLETED', completedAt: new Date() },
+          data: { failedCount: { increment: 1 } },
         });
+
+        // If all recipients processed (sent + failed >= total), mark campaign COMPLETED.
+        if ((updatedCampaignFail.sentCount + updatedCampaignFail.failedCount) >= updatedCampaignFail.totalRecipients) {
+          await tx.emailCampaign.update({
+            where: { id: campaignId },
+            data: { status: 'COMPLETED', completedAt: new Date() },
+          });
+        }
       }
 
       // Audit log.
