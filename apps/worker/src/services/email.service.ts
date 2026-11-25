@@ -15,14 +15,23 @@ export interface SenderAccountRecord {
 export class EmailService {
   createTransporter(sender: SenderAccountRecord): Transporter {
     const pass = decryptPassword(sender.smtpPassEncrypted);
+
+    // Ethereal on port 587 times out on Render (port 587 is blocked).
+    // Automatically upgrade Ethereal port 587 → 465 (SSL) at runtime.
+    const isEthereal = sender.smtpHost.includes('ethereal.email');
+    const port = isEthereal && sender.smtpPort === 587 ? 465 : sender.smtpPort;
+
     return nodemailer.createTransport({
       host: sender.smtpHost,
-      port: sender.smtpPort,
-      secure: sender.smtpPort === 465,
+      port,
+      secure: port === 465,
       auth: {
         user: sender.smtpUser,
         pass,
       },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
     });
   }
 
