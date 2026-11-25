@@ -28,13 +28,13 @@ export class SlackController {
       }
 
       if (!code) {
-        throw new ApiError(400, 'Missing code from Slack', 'SLACK_CODE_MISSING');
+        return res.redirect(`${config.corsOrigin}/slack?error=missing_code`) as unknown as void;
       }
 
       // Extract userId from state
       const userId = state?.split(':')[0];
       if (!userId) {
-        throw new ApiError(400, 'Invalid OAuth state', 'INVALID_STATE');
+        return res.redirect(`${config.corsOrigin}/slack?error=invalid_state`) as unknown as void;
       }
 
       const tokenData = await slackService.exchangeCode(code);
@@ -50,7 +50,9 @@ export class SlackController {
 
       res.redirect(`${config.corsOrigin}/slack?connected=true`);
     } catch (err) {
-      next(err);
+      // Redirect to frontend with error rather than showing raw JSON
+      const message = encodeURIComponent((err as Error).message ?? 'oauth_failed');
+      res.redirect(`${config.corsOrigin}/slack?error=${message}`);
     }
   }
 

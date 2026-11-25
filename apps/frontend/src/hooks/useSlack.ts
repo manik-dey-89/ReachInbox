@@ -48,5 +48,6 @@ export function useSlack() {
     connect,
     disconnect: disconnectMutation.mutate,
     isDisconnecting: disconnectMutation.isPending,
+    refetch: statusQuery.refetch,
   };
 }

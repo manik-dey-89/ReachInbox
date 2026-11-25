@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useSlack } from '@/hooks/useSlack';
 import { SlackStatus } from '@/components/slack/SlackStatus';
 import { SlackConnectButton } from '@/components/slack/SlackConnectButton';
@@ -14,10 +15,27 @@ import {
   ModalFooter,
 } from '@/components/ui/modal';
 import { Bell } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function SlackPage() {
-  const { status, isLoading, disconnect, isDisconnecting } = useSlack();
+  const { status, isLoading, disconnect, isDisconnecting, refetch } = useSlack();
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Handle OAuth callback result from query params
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    if (connected === 'true') {
+      toast.success('Slack connected successfully!');
+      void refetch?.();
+      // Clean up URL
+      window.history.replaceState({}, '', '/slack');
+    } else if (error) {
+      toast.error(`Slack connection failed: ${decodeURIComponent(error)}`);
+      window.history.replaceState({}, '', '/slack');
+    }
+  }, [searchParams, refetch]);
 
   const isConnected = status?.connected && status.integration;
 
