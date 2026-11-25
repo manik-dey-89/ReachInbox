@@ -10,14 +10,24 @@ export interface SenderAccountWithPass extends SenderAccount {
 export class EmailService {
   createTransporter(senderAccount: SenderAccountWithPass): Transporter {
     const pass = decryptPassword(senderAccount.smtpPassEncrypted);
+
+    // Ethereal on port 587 times out on Render (port 587 is blocked).
+    // Automatically upgrade Ethereal port 587 → 465 (SSL) at runtime.
+    const isEthereal = senderAccount.smtpHost.includes('ethereal.email');
+    const port = isEthereal && senderAccount.smtpPort === 587 ? 465 : senderAccount.smtpPort;
+
     return nodemailer.createTransport({
       host: senderAccount.smtpHost,
-      port: senderAccount.smtpPort,
-      secure: senderAccount.smtpPort === 465,
+      port,
+      secure: port === 465,
       auth: {
         user: senderAccount.smtpUser,
         pass,
       },
+      // Fail fast so BullMQ retries quickly rather than hanging for minutes
+      connectionTimeout: 10_000,   // 10s to establish TCP connection
+      greetingTimeout: 10_000,     // 10s for SMTP EHLO/HELO greeting
+      socketTimeout: 20_000,       // 20s of socket inactivity before aborting
     });
   }
 
@@ -54,7 +64,9 @@ export class EmailService {
     const testAccount = await nodemailer.createTestAccount();
     return {
       host: testAccount.smtp.host,
-      port: testAccount.smtp.port,
+      // Use port 465 (SSL) instead of 587 (STARTTLS).
+      // Render free tier blocks outbound port 587; port 465 is allowed.
+      port: 465,
       user: testAccount.user,
       pass: testAccount.pass,
     };
