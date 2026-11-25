@@ -44,12 +44,14 @@ function httpsPost(url: string, body: string): Promise<unknown> {
 
 export class SlackService {
   getAuthUrl(state: string): string {
-    // Always use the full backend URL for the redirect_uri.
-    // This must exactly match what is registered in the Slack App's
-    // OAuth & Permissions → Redirect URLs.
-    // We derive it from the request origin rather than a potentially-wrong
-    // env var so it always matches the actual backend URL.
-    const redirectUri = `${process.env.SLACK_REDIRECT_URI || 'http://localhost:3001/api/slack/callback'}`;
+    // Derive redirect URI from the actual backend URL env var.
+    // Falls back to the SLACK_REDIRECT_URI env var, then localhost.
+    const backendUrl = process.env.RENDER_EXTERNAL_URL
+      || process.env.SLACK_REDIRECT_URI?.replace('/api/slack/callback', '')
+      || 'http://localhost:3001';
+    const redirectUri = `${backendUrl}/api/slack/callback`;
+
+    logger.info('Slack OAuth redirect_uri', { redirectUri });
 
     const params = new URLSearchParams({
       client_id: config.slackClientId,
@@ -61,7 +63,10 @@ export class SlackService {
   }
 
   async exchangeCode(code: string): Promise<SlackTokenResponse> {
-    const redirectUri = process.env.SLACK_REDIRECT_URI || 'http://localhost:3001/api/slack/callback';
+    const backendUrl = process.env.RENDER_EXTERNAL_URL
+      || process.env.SLACK_REDIRECT_URI?.replace('/api/slack/callback', '')
+      || 'http://localhost:3001';
+    const redirectUri = `${backendUrl}/api/slack/callback`;
 
     const body = new URLSearchParams({
       code,
