@@ -41,17 +41,24 @@ const columns: Column<EmailRowRecord>[] = [
     header: 'Preview',
     render: (row) => {
       const url = row.previewUrl as string | null;
-      if (!url) return <span className="text-slate-400 text-xs">—</span>;
+      if (url && url.startsWith('http')) {
+        return (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline text-xs"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Ethereal
+          </a>
+        );
+      }
+      // Resend delivers to real inbox — no preview URL, check inbox directly
       return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline text-xs"
-        >
-          <ExternalLink className="h-3 w-3" />
-          Ethereal
-        </a>
+        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-medium">
+          ✓ Delivered
+        </span>
       );
     },
   },
