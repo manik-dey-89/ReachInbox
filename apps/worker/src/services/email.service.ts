@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import https from 'node:https';
 import { decryptPassword } from '../utils/crypto';
+import logger from '../utils/logger';
 
 export interface SenderAccountRecord {
   id: string;
@@ -12,23 +14,68 @@ export interface SenderAccountRecord {
   smtpPassEncrypted: string;
 }
 
+async function sendViaResend(params: {
+  fromName: string;
+  fromEmail: string;
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<{ messageId: string; previewUrl: string | null }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not set. Add it in Render environment variables. Get a free key at resend.com');
+  }
+
+  const body = JSON.stringify({
+    from: `${params.fromName} <${params.fromEmail}>`,
+    to: [params.to],
+    subject: params.subject,
+    html: params.html,
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: 'api.resend.com',
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data) as { id?: string; name?: string; message?: string };
+            if (res.statusCode && res.statusCode >= 400) {
+              reject(new Error(`Resend API error ${res.statusCode}: ${parsed.message ?? data}`));
+            } else {
+              resolve({ messageId: parsed.id ?? 'resend-unknown', previewUrl: null });
+            }
+          } catch {
+            reject(new Error(`Resend API parse error: ${data}`));
+          }
+        });
+      },
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 export class EmailService {
   createTransporter(sender: SenderAccountRecord): Transporter {
     const pass = decryptPassword(sender.smtpPassEncrypted);
-
-    // Ethereal on port 587 times out on Render (port 587 is blocked).
-    // Automatically upgrade Ethereal port 587 → 465 (SSL) at runtime.
-    const isEthereal = sender.smtpHost.includes('ethereal.email');
-    const port = isEthereal && sender.smtpPort === 587 ? 465 : sender.smtpPort;
-
     return nodemailer.createTransport({
       host: sender.smtpHost,
-      port,
-      secure: port === 465,
-      auth: {
-        user: sender.smtpUser,
-        pass,
-      },
+      port: sender.smtpPort,
+      secure: sender.smtpPort === 465,
+      auth: { user: sender.smtpUser, pass },
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 20_000,
@@ -42,17 +89,32 @@ export class EmailService {
     subject: string;
     body: string;
   }): Promise<{ messageId: string; previewUrl: string | null }> {
-    const transporter = this.createTransporter(params.sender);
+    const { sender, to, name, subject, body } = params;
+    const isEthereal = sender.smtpHost.includes('ethereal.email');
+    const isProduction = process.env.NODE_ENV === 'production';
 
+    if (isEthereal && isProduction) {
+      logger.info('Production: routing Ethereal sender via Resend HTTP API', {
+        to, subject, from: sender.email,
+      });
+      return sendViaResend({
+        fromName: sender.name,
+        fromEmail: sender.email,
+        to,
+        subject,
+        html: body,
+      });
+    }
+
+    const transporter = this.createTransporter(sender);
     const info = await transporter.sendMail({
-      from: `"${params.sender.name}" <${params.sender.email}>`,
-      to: params.name ? `"${params.name}" <${params.to}>` : params.to,
-      subject: params.subject,
-      html: params.body,
+      from: `"${sender.name}" <${sender.email}>`,
+      to: name ? `"${name}" <${to}>` : to,
+      subject,
+      html: body,
     });
 
     const previewUrl = nodemailer.getTestMessageUrl(info) || null;
-
     return {
       messageId: info.messageId as string,
       previewUrl: typeof previewUrl === 'string' ? previewUrl : null,
