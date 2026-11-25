@@ -1,15 +1,7 @@
 import axios from 'axios';
 
-// In the browser, always use relative /api/* paths so requests go through
-// the Next.js rewrite proxy -> backend. This avoids CORS issues entirely.
-// On the server (SSR), use the full backend URL.
-const baseURL =
-  typeof window === 'undefined'
-    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    : '';  // relative — browser uses Next.js rewrite /api/* -> backend
-
 const api = axios.create({
-  baseURL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   withCredentials: true,
 });
 
