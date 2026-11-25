@@ -99,7 +99,9 @@ export class EmailService {
       });
       return sendViaResend({
         fromName: sender.name,
-        fromEmail: sender.email,
+        // Resend free tier requires a verified sender domain.
+        // Use Resend's built-in test address as the technical sender.
+        fromEmail: 'onboarding@resend.dev',
         to,
         subject,
         html: body,
